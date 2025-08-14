@@ -104,8 +104,7 @@ local function rcon_uuid_exists_for_local_index(local_index)
 end
 
 local function rcon_uuid_generate()
-   -- TODO: generate a UUID
-   return "implement me!"
+   return math.random(0, math.maxinteger)
 end
 
 local function rcon_uuid_create_new(local_index)
@@ -116,7 +115,7 @@ local function rcon_uuid_create_new(local_index)
       uuid = uuid,
    }
 
-   rcon_log_info("assigned UUID " .. uuid .. " to player " .. rcon_format_player_name(local_index))
+   rcon_log_info("assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
    return uuid
 end
 
