@@ -90,8 +90,10 @@ local function rcon_send_packet_send(message)
 end
 
 local function rcon_receive_packet_request_uuid(sender_global_index)
+   local sender_local_index = network_local_index_from_global(sender_global_index)
+
    -- TODO: implement
-   rcon_text_info("received UUID request packet from " .. sender_global_index)
+   rcon_text_info("received UUID request packet from " .. gNetworkPlayers[sender_local_index].name)
    return
 end
 
