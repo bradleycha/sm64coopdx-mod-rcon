@@ -89,11 +89,13 @@ end
 
 local function rcon_uuid_exists_for_local_index(local_index)
    -- TODO: implement
+   rcon_log_info("checking for existing UUID for player " .. rcon_format_player_name(local_index))
    return true
 end
 
 local function rcon_uuid_create_new(local_index)
    -- TODO: implement
+   rcon_log_info("creating UUID entry for player " .. rcon_format_player_name(local_index))
    return "DEADBEEF"
 end
 
@@ -211,12 +213,12 @@ end
 
 local function rcon_set_password(password)
    -- TODO: implement
-   rcon_text_info("set password to " .. password)
+   rcon_log_info("set password to " .. password)
 end
 
 local function rcon_deauth()
    -- TODO: implement
-   rcon_text_info("deauthorize all users")
+   rcon_log_info("deauthorize all users")
    return
 end
 
