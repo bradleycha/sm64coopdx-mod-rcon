@@ -38,20 +38,19 @@ local function rcon_send_packet_to_server(reliable, packet)
    return
 end
 
-local RCON_PACKET_TYPE_LOGIN           = 0
-local RCON_PACKET_TYPE_SEND            = 1
-local RCON_PACKET_TYPE_RESPONSE_LOGIN  = 2
-local RCON_PACKET_TYPE_RESPONSE_SEND   = 3
+local RCON_PACKET_TYPE_LOGIN                    = 0 -- Sent by client when logging in
+local RCON_PACKET_TYPE_SEND                     = 1 -- Sent by client when sending an rcon message
+local RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC   = 0 -- Sent by server when an error occurred
+local RCON_PACKET_TYPE_RESPONSE_LOGIN           = 1 -- Sent by server when responding to a login request
+local RCON_PACKET_TYPE_RESPONSE_SEND            = 2 -- Sent by server when responding to a send request
 
 local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
 local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
 local RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD       = 2
 local RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN          = 3
-local RCON_PACKET_RESPONSE_LOGIN_CODE_UNKNOWN_ERROR      = 4
 
 local RCON_PACKET_RESPONSE_SEND_CODE_OK            = 0
 local RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED  = 1
-local RCON_PACKET_RESPONSE_SEND_CODE_UNKNOWN_ERROR = 2
 
 -- Note: we send command packets only to the host.  This is *extremely*
 -- important.  If we were to send it to anyone other than the host, then
@@ -111,8 +110,6 @@ local function rcon_receive_packet_response_login(code)
       rcon_text_error("Incorrect password for remote console")
    elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN then
       rcon_text_error("You are forbidden from logging into the remote console")
-   elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_UNKNOWN_ERROR then
-      rcon_text_error("Unknown error occurred upon remote console login attempt")
    end
 
    return
@@ -123,10 +120,17 @@ local function rcon_receive_packet_response_send(code)
       rcon_text_info("Remote console message sent successfully")
    elseif code == RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED then
       rcon_text_error("Unauthorized to send remote console messages")
-   elseif code == RCON_PACKET_RESPONSE_SEND_CODE_UNKNOWN_ERROR then
-      rcon_text_error("Unknown error occurred upon remote console message sending attempt")
    end
 
+   return
+end
+
+local function rcon_receive_packet_response_generic_error()
+   -- These are received when we don't want to notify the client of the specifc
+   -- cause of the error.  This is useful when invalid data is sent, which may
+   -- come from hacking attempts.  If the client is trying to hack us, we want
+   -- to be as vague as possible, so we just send a generic error packet.
+   rcon_text_error("A remote console error occurred.  Please try again later, or rejoin if the issue persists.")
    return
 end
 
@@ -150,6 +154,8 @@ local function rcon_packet_receive_client(packet)
       rcon_receive_packet_response_login(packet.code)
    elseif packet.type == RCON_PACKET_TYPE_RESPONSE_SEND then
       rcon_receive_packet_response_send(packet.code)
+   elseif packet.type == RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC then
+      rcon_receive_packet_response_generic_error()
    end
 
    return
