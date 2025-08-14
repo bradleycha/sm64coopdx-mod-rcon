@@ -47,9 +47,11 @@ local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
 local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
 local RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD       = 2
 local RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN          = 3
+local RCON_PACKET_RESPONSE_LOGIN_CODE_UNKNOWN_ERROR      = 4
 
 local RCON_PACKET_RESPONSE_SEND_CODE_OK            = 0
 local RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED  = 1
+local RCON_PACKET_RESPONSE_SEND_CODE_UNKNOWN_ERROR = 2
 
 -- Note: we send command packets only to the host.  This is *extremely*
 -- important.  If we were to send it to anyone other than the host, then
@@ -109,6 +111,8 @@ local function rcon_receive_packet_response_login(code)
       rcon_text_error("Incorrect password for remote console")
    elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN then
       rcon_text_error("You are forbidden from logging into the remote console")
+   elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_UNKNOWN_ERROR then
+      rcon_text_error("Unknown error occurred upon remote console login attempt")
    end
 
    return
@@ -119,6 +123,8 @@ local function rcon_receive_packet_response_send(code)
       rcon_text_info("Remote console message sent successfully")
    elseif code == RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED then
       rcon_text_error("Unauthorized to send remote console messages")
+   elseif code == RCON_PACKET_RESPONSE_SEND_CODE_UNKNOWN_ERROR then
+      rcon_text_error("Unknown error occurred upon remote console message sending attempt")
    end
 
    return
