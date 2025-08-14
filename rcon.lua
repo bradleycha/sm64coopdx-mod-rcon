@@ -25,6 +25,20 @@ local function rcon_text_error(message)
    return
 end
 
+local RCON_LOG_PREFIX = "rcon: "
+
+local function rcon_log_info(message)
+   log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_INFO)
+end
+
+local function rcon_log_warning(message)
+   log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_WARNING)
+end
+
+local function rcon_log_error(message)
+   log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_ERROR)
+end
+
 local gHostPlayerIndex = -1;
 for _, network_player in ipairs(gNetworkPlayers) do
    if network_player.type == NPT_SERVER then
@@ -33,9 +47,44 @@ for _, network_player in ipairs(gNetworkPlayers) do
    end
 end
 
-local function rcon_send_packet_to_server(reliable, packet)
-   network_send_to(gHostPlayerIndex, reliable, packet)
+local function rcon_format_player_name(local_index)
+   local player = gNetworkPlayers[local_index]
+
+   local name = player.name .. " [" .. local_index .. "]"
+
+   local coopnet_id = get_coopnet_id(local_index)
+   if coopnet_id ~= "-1" then
+      name = name .. " [" .. coopnet_id .. "]"
+   end
+
+   return name
+end
+
+local function rcon_receive_packet_from_server(packet)
+   -- TODO: implement packet decryption
+   return packet
+end
+
+local function rcon_receive_packet_from_client(packet)
+   -- TODO: implement packet decryption
+   return packet
+end
+
+local function rcon_send_packet_to_server(packet)
+   -- TODO: implement packet encryption
+   network_send_to(gHostPlayerIndex, true, packet)
    return
+end
+
+local function rcon_send_packet_to_client(local_index, packet)
+   -- TODO: implement packet encryption
+   network_send_to(local_index, true, packet)
+   return
+end
+
+local function rcon_uuid_exists_for_local_index(local_index)
+   -- TODO: implement
+   return true
 end
 
 local RCON_PACKET_TYPE_REQUEST_UUID             = 0 -- Sent by client when joining server and requesting UUID
@@ -65,7 +114,7 @@ local function rcon_send_packet_request_uuid(global_index)
       global_index = global_index,
    }
 
-   rcon_send_packet_to_server(true, packet)
+   rcon_send_packet_to_server(packet)
    return
 end
 
@@ -76,7 +125,7 @@ local function rcon_send_packet_login(password)
    }
 
    rcon_text_info("Logging into remote console")
-   rcon_send_packet_to_server(true, packet)
+   rcon_send_packet_to_server(packet)
 end
 
 local function rcon_send_packet_send(message)
@@ -86,11 +135,20 @@ local function rcon_send_packet_send(message)
    }
 
    rcon_text_info("Sending remote console message")
-   rcon_send_packet_to_server(true, packet)
+   rcon_send_packet_to_server(packet)
 end
 
 local function rcon_receive_packet_request_uuid(sender_global_index)
    local sender_local_index = network_local_index_from_global(sender_global_index)
+
+   -- Don't allow UUIDs to be regenerated, as that could be used by an attacker
+   -- to deauthorize existing users.  Combined with a script to spam packets,
+   -- this could effectively disable the rcon for everyone in the server.
+   if rcon_uuid_exists_for_local_index(sender_local_index) then
+      rcon_log_warning("attempted to regenerate UUID for player " .. rcon_format_player_name(sender_local_index))
+      rcon_send_packet_to_client(sender_local_index, {type = RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC})
+      return
+   end
 
    -- TODO: implement
    rcon_text_info("received UUID request packet from " .. gNetworkPlayers[sender_local_index].name)
@@ -184,11 +242,11 @@ end
 
 local function rcon_packet_receive(packet)
    if network_is_server() then
-      rcon_packet_receive_server(packet)
+      rcon_packet_receive_server(rcon_receive_packet_from_server(packet))
       return
    end
 
-   rcon_packet_receive_client(packet)
+   rcon_packet_receive_client(rcon_receive_packet_from_client(packet))
    return
 end
 
