@@ -22,9 +22,19 @@ local function rcon_send_packet_login(password)
    rcon_text_info("login with password " .. password)
 end
 
-local function rcon_send_packet_send(cmd)
+local function rcon_send_packet_send(message)
    -- TODO: implement
-   rcon_text_info("send command " .. cmd)
+   rcon_text_info("send command " .. message)
+end
+
+local function rcon_receive_packet_login(player, password)
+   -- TODO: implement
+   rcon_text_info("received login packet with password " .. password)
+end
+
+local function rcon_receive_packet_send(player, message)
+   -- TODO: implement
+   rcon_text_info("received send packet with command " .. message)
 end
 
 local function rcon_set_password(password)
@@ -35,6 +45,26 @@ end
 local function rcon_deauth()
    -- TODO: implement
    rcon_text_info("deauthorize all users")
+   return
+end
+
+local function rcon_packet_receive_server(packet)
+   -- TODO: implement, this will be used for handling chat commands
+   return
+end
+
+local function rcon_packet_receive_client(packet)
+   -- TODO: implement, this will be used for handling responses from the server
+   return
+end
+
+local function rcon_packet_receive(packet)
+   if network_is_server() then
+      rcon_packet_receive_server()
+      return
+   end
+
+   rcon_packet_receive_client()
    return
 end
 
@@ -150,5 +180,6 @@ local function rcon_parse_cmd(message)
    return true
 end
 
+hook_event(HOOK_ON_PACKET_RECEIVE, rcon_packet_receive)
 hook_chat_command("rcon", "Access the remote console", rcon_parse_cmd)
 
