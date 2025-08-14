@@ -310,8 +310,8 @@ local function rcon_receive_packet_send(sender, message)
    rcon_log_info(log_message)
    rcon_text_info(log_message)
 
-   -- TODO: write custom lua hook for the host to send the chat message and
-   -- then call it from here
+   -- Custom lua function, requires patching the game's sources
+   send_chat_message(message)
    
    rcon_send_packet_to_client(sender, {
       type = RCON_PACKET_TYPE_RESPONSE_SEND,
