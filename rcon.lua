@@ -100,6 +100,10 @@ local function rcon_uuid_create_new(local_index)
 end
 
 local function rcon_uuid_remove(local_index)
+   if not rcon_uuid_exists_for_local_index(local_index) then
+      return
+   end
+
    -- TODO: implement
    rcon_log_info("removing UUID entry for player " .. rcon_format_player_name(local_index))
    return
@@ -316,6 +320,22 @@ local function rcon_join_game()
    return
 end
 
+local function rcon_player_disconnected(mario_state)
+   if not network_is_server() then
+      return
+   end
+
+   -- I don't know why they don't pass the local index of the player who left,
+   -- so we have to find it manually...
+   for i, network_player in ipairs(gNetworkPlayers) do
+      if not network_player.connected then
+         rcon_uuid_remove(i)
+      end
+   end
+
+   return
+end
+
 local function rcon_parse_cmd_help()
    djui_chat_message_create(
       "\\#f0a0a0\\Remote console command list:\n" ..
@@ -433,5 +453,6 @@ end
 
 hook_event(HOOK_ON_PACKET_RECEIVE, rcon_packet_receive)
 hook_event(HOOK_JOINED_GAME, rcon_join_game)
+hook_event(HOOK_ON_PLAYER_DISCONNECTED, rcon_player_disconnected)
 hook_chat_command("rcon", "Access the remote console", rcon_parse_cmd)
 
