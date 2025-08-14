@@ -106,8 +106,14 @@ local function rcon_receive_packet_response_send(code)
 end
 
 local function rcon_packet_receive_server(packet)
-   -- TODO: implement in a secure way, if we just pack the player ID with the
-   -- packet, then the player ID can be spoofed and we're fucked
+   -- TODO: implement in a secure way.  due to the way the lua interface is
+   -- set up, we have to rely on the client to be honest about its player ID, as
+   -- there's no way to directly store a NetworkPlayer's ID or whatever from
+   -- lua.  The idea I have is we assign a secret value to every client on
+   -- join and transmit that to the client.  Then, every packet a client sends
+   -- should include both its ID and secret.  The server then checks and makes
+   -- sure they line up.  If they don't, then we know someone is tampering with
+   -- the player ID.
    local sender = "[UNKNOWN]"
 
    if packet.type == RCON_PACKET_TYPE_LOGIN then
