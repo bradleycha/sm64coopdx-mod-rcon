@@ -113,6 +113,9 @@ local function rcon_uuid_create_new(local_index)
    gPlayerTable[local_index] = {
       valid = true,
       uuid = uuid,
+      failed_login_attempts = 0,
+      forbidden = false,
+      access = false,
    }
 
    rcon_log_info("assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
@@ -226,10 +229,31 @@ local function rcon_receive_packet_login(sender, password)
 end
 
 local function rcon_receive_packet_send(sender, message)
-   -- TODO: implement
+   local player = gPlayerTable[sender]
+   local name = rcon_format_player_name(sender)
+
+   if not player.access then
+      local log_message = "Unauthorized player " .. name .. " attempted to send remote console message \'" .. message .. "\'"
+      rcon_log_warning(log_message)
+      rcon_text_warning(log_message)
+
+      rcon_send_packet_to_client(sender, {
+         type = RCON_PACKET_TYPE_RESPONSE_SEND,
+         code = RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED,
+      })
+      return
+   end
+
+   local log_message = "Player " .. name .. " sent remote console message \'" .. message .. "\'"
+   rcon_log_info(log_message)
+   rcon_text_info(log_message)
+
+   -- TODO: write custom lua hook for the host to send the chat message and
+   -- then call it from here
+   
    rcon_send_packet_to_client(sender, {
       type = RCON_PACKET_TYPE_RESPONSE_SEND,
-      code = RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED,
+      code = RCON_PACKET_RESPONSE_SEND_CODE_OK,
    })
 
    return
@@ -467,9 +491,6 @@ local function rcon_parse_cmd(message)
 
    return true
 end
-
--- TODO: create custom hook when a player leaves from the server's perspective
--- so we can deregister their UUID
 
 hook_event(HOOK_ON_PACKET_RECEIVE, rcon_packet_receive)
 hook_event(HOOK_JOINED_GAME, rcon_join_game)
