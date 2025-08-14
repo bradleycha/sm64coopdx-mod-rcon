@@ -87,12 +87,28 @@ local function rcon_uuid_exists_for_local_index(local_index)
    return true
 end
 
+local function rcon_uuid_create_new(local_index)
+   -- TODO: implement
+   return "DEADBEEF"
+end
+
+local gClientUuid = -1;
+local function rcon_uuid_store(assigned_uuid)
+   gClientUuid = assigned_uuid
+   return
+end
+
+local function rcon_uuid_get()
+   return gClientUuid
+end
+
 local RCON_PACKET_TYPE_REQUEST_UUID             = 0 -- Sent by client when joining server and requesting UUID
 local RCON_PACKET_TYPE_LOGIN                    = 1 -- Sent by client when logging in
 local RCON_PACKET_TYPE_SEND                     = 2 -- Sent by client when sending an rcon message
 local RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC   = 0 -- Sent by server when an error occurred
-local RCON_PACKET_TYPE_RESPONSE_LOGIN           = 1 -- Sent by server when responding to a login request
-local RCON_PACKET_TYPE_RESPONSE_SEND            = 2 -- Sent by server when responding to a send request
+local RCON_PACKET_TYPE_RESPONSE_REQUEST_UUID    = 1 -- Sent by server when a UUID is assigned to a client
+local RCON_PACKET_TYPE_RESPONSE_LOGIN           = 2 -- Sent by server when responding to a login request
+local RCON_PACKET_TYPE_RESPONSE_SEND            = 3 -- Sent by server when responding to a send request
 
 local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
 local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
@@ -150,8 +166,13 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
       return
    end
 
-   -- TODO: implement
-   rcon_text_info("received UUID request packet from " .. gNetworkPlayers[sender_local_index].name)
+   local assigned_uuid = rcon_uuid_create_new(sender_local_index)
+
+   rcon_send_packet_to_client(sender_local_index, {
+      type = RCON_PACKET_TYPE_RESPONSE_REQUEST_UUID,
+      assigned_uuid = assigned_uuid
+   })
+
    return
 end
 
@@ -202,6 +223,11 @@ local function rcon_receive_packet_response_send(code)
    return
 end
 
+local function rcon_receive_packet_response_request_uuid(assigned_uuid)
+   rcon_uuid_store(assigned_uuid)
+   return
+end
+
 local function rcon_receive_packet_response_generic_error()
    -- These are received when we don't want to notify the client of the specifc
    -- cause of the error.  This is useful when invalid data is sent, which may
@@ -233,6 +259,8 @@ local function rcon_packet_receive_client(packet)
       rcon_receive_packet_response_login(packet.code)
    elseif packet.type == RCON_PACKET_TYPE_RESPONSE_SEND then
       rcon_receive_packet_response_send(packet.code)
+   elseif packet.type == RCON_PACKET_TYPE_RESPONSE_REQUEST_UUID then
+      rcon_receive_packet_response_request_uuid(packet.assigned_uuid)
    elseif packet.type == RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC then
       rcon_receive_packet_response_generic_error()
    end
