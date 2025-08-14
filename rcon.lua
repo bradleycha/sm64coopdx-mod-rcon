@@ -218,13 +218,75 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
    return
 end
 
-local function rcon_receive_packet_login(sender, password)
+local gMaximumLoginAttempts = 3
+
+local function rcon_check_password(password)
    -- TODO: implement
+   return false
+end
+
+local function rcon_set_password(password)
+   -- TODO: implement
+   rcon_log_info("set password to " .. password)
+end
+
+local function rcon_deauth()
+   -- TODO: implement
+   rcon_log_info("deauthorize all users")
+   return
+end
+
+local function rcon_receive_packet_login(sender, password)
+   local player = gPlayerTable[sender]
+   local name = rcon_format_player_name(sender)
+
+   if player.forbidden then
+      local log_message = "Forbidden player " .. name .. " attempted to login to the remote console"
+      rcon_log_warning(log_message)
+      rcon_text_warning(log_message)
+
+      rcon_send_packet_to_client(sender, {
+         type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
+         code = RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN,
+      })
+      return
+   end
+
+   local password_is_correct = rcon_check_password(password)
+
+   if password_is_correct then
+      local log_message = "Player " .. name .. " successfully logged into the remote console"
+      rcon_log_info(log_message)
+      rcon_text_info(log_message)
+      
+      player.access = true
+      player.failed_login_attempts = 0
+
+      rcon_send_packet_to_client(sender, {
+         type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
+         code = RCON_PACKET_RESPONSE_LOGIN_CODE_OK,
+      })
+      return
+   end
+
+   player.failed_login_attempts = player.failed_login_attempts + 1
+
+   local log_message = "Player " .. name .. " attempted to login to the remote console with incorrect password \'" .. password .. "\'"
+   rcon_log_warning(log_message)
+   rcon_text_warning(log_message)
+
+   if player.failed_login_attempts >= gMaximumLoginAttempts then
+      local log_message = "Player " .. name .. " surpassed maximum number of invalid login attempts, forbidding future login attempts"
+      rcon_log_warning(log_message)
+      rcon_text_warning(log_message)
+
+      player.forbidden = true
+   end
+
    rcon_send_packet_to_client(sender, {
       type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
-      code = RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN,
+      code = RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD,
    })
-
    return
 end
 
@@ -256,17 +318,6 @@ local function rcon_receive_packet_send(sender, message)
       code = RCON_PACKET_RESPONSE_SEND_CODE_OK,
    })
 
-   return
-end
-
-local function rcon_set_password(password)
-   -- TODO: implement
-   rcon_log_info("set password to " .. password)
-end
-
-local function rcon_deauth()
-   -- TODO: implement
-   rcon_log_info("deauthorize all users")
    return
 end
 
