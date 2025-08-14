@@ -9,6 +9,14 @@ local function rcon_text_info(message)
    return
 end
 
+local function rcon_text_warning(message)
+   local color = "\\#f0f090\\"
+
+   djui_chat_message_create(color .. message)
+
+   return
+end
+
 local function rcon_text_error(message)
    local color = "\\#b02020\\"
 
@@ -17,8 +25,18 @@ local function rcon_text_error(message)
    return
 end
 
-local RCON_PACKET_TYPE_LOGIN  = 0
-local RCON_PACKET_TYPE_SEND   = 1
+local RCON_PACKET_TYPE_LOGIN           = 0
+local RCON_PACKET_TYPE_SEND            = 1
+local RCON_PACKET_TYPE_RESPONSE_LOGIN  = 2
+local RCON_PACKET_TYPE_RESPONSE_SEND   = 3
+
+local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
+local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
+local RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD       = 2
+local RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN          = 3
+
+local RCON_PACKET_RESPONSE_SEND_CODE_OK            = 0
+local RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED  = 1
 
 local function rcon_send_packet_login(password)
    local packet = {
@@ -26,7 +44,7 @@ local function rcon_send_packet_login(password)
       password = password,
    }
 
-   rcon_text_info("Logging in to remote console")
+   rcon_text_info("Logging into remote console")
    network_send(true, packet)
 end
 
@@ -41,13 +59,15 @@ local function rcon_send_packet_send(message)
 end
 
 local function rcon_receive_packet_login(sender, password)
-   -- TODO: implement
+   -- TODO: implement, make sure to use network_send_to(false, ...) for the response
    rcon_text_info("received login packet from " .. sender .. " with password " .. password)
+   return
 end
 
 local function rcon_receive_packet_send(sender, message)
-   -- TODO: implement
+   -- TODO: implement, make sure to use network_send_to(false, ...) for the response
    rcon_text_info("received send packet from " .. sender .. " with command " .. message)
+   return
 end
 
 local function rcon_set_password(password)
@@ -58,6 +78,30 @@ end
 local function rcon_deauth()
    -- TODO: implement
    rcon_text_info("deauthorize all users")
+   return
+end
+
+local function rcon_receive_packet_response_login(code)
+   if code == RCON_PACKET_RESPONSE_LOGIN_CODE_OK then
+      rcon_text_info("Logged into remote console successfully")
+   elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN then
+      rcon_text_warning("You are already authorized with the remote console")
+   elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD then
+      rcon_text_error("Incorrect password for remote console")
+   elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN then
+      rcon_text_error("You are forbidden from logging into the remote console")
+   end
+
+   return
+end
+
+local function rcon_receive_packet_response_send(code)
+   if code == RCON_PACKET_RESPONSE_SEND_CODE_OK then
+      rcon_text_info("Remote console message sent successfully")
+   elseif code == RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED then
+      rcon_text_error("Unauthorized to send remote console messages")
+   end
+
    return
 end
 
@@ -76,7 +120,12 @@ local function rcon_packet_receive_server(packet)
 end
 
 local function rcon_packet_receive_client(packet)
-   -- TODO: implement, this will be used for handling responses from the server
+   if packet.type == RCON_PACKET_TYPE_RESPONSE_LOGIN then
+      rcon_receive_packet_response_login(packet.code)
+   elseif packet.type == RCON_PACKET_TYPE_RESPONSE_SEND then
+      rcon_receive_packet_response_send(packet.code)
+   end
+
    return
 end
 
