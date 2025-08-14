@@ -17,24 +17,37 @@ local function rcon_text_error(message)
    return
 end
 
+local RCON_PACKET_TYPE_LOGIN  = 0
+local RCON_PACKET_TYPE_SEND   = 1
+
 local function rcon_send_packet_login(password)
-   -- TODO: implement
-   rcon_text_info("login with password " .. password)
+   local packet = {
+      type = RCON_PACKET_TYPE_LOGIN,
+      password = password,
+   }
+
+   rcon_text_info("Logging in to remote console")
+   network_send(true, packet)
 end
 
 local function rcon_send_packet_send(message)
-   -- TODO: implement
-   rcon_text_info("send command " .. message)
+   local packet = {
+      type = RCON_PACKET_TYPE_SEND,
+      message = message,
+   }
+
+   rcon_text_info("Sending remote console message")
+   network_send(true, packet)
 end
 
-local function rcon_receive_packet_login(player, password)
+local function rcon_receive_packet_login(sender, password)
    -- TODO: implement
-   rcon_text_info("received login packet with password " .. password)
+   rcon_text_info("received login packet from " .. sender .. " with password " .. password)
 end
 
-local function rcon_receive_packet_send(player, message)
+local function rcon_receive_packet_send(sender, message)
    -- TODO: implement
-   rcon_text_info("received send packet with command " .. message)
+   rcon_text_info("received send packet from " .. sender .. " with command " .. message)
 end
 
 local function rcon_set_password(password)
@@ -49,7 +62,16 @@ local function rcon_deauth()
 end
 
 local function rcon_packet_receive_server(packet)
-   -- TODO: implement, this will be used for handling chat commands
+   -- TODO: implement in a secure way, if we just pack the player ID with the
+   -- packet, then the player ID can be spoofed and we're fucked
+   local sender = "[UNKNOWN]"
+
+   if packet.type == RCON_PACKET_TYPE_LOGIN then
+      rcon_receive_packet_login(sender, packet.password)
+   elseif packet.type == RCON_PACKET_TYPE_SEND then
+      rcon_receive_packet_send(sender, packet.message)
+   end
+
    return
 end
 
@@ -60,11 +82,11 @@ end
 
 local function rcon_packet_receive(packet)
    if network_is_server() then
-      rcon_packet_receive_server()
+      rcon_packet_receive_server(packet)
       return
    end
 
-   rcon_packet_receive_client()
+   rcon_packet_receive_client(packet)
    return
 end
 
