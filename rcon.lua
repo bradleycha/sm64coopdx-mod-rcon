@@ -82,21 +82,42 @@ local function rcon_send_packet_to_client(local_index, packet)
    return
 end
 
+-- Stores all player information, except for gNetworkPlayers[0], which is the host
+local gPlayerTable = {}
+gPlayerTable[MAX_PLAYERS - 1] = nil
+
 local function rcon_uuid_to_local_index(uuid)
-   -- TODO: implement
+   for i, player in ipairs(gPlayerTable) do
+      if player ~= nil and player.valid then
+         if player.uuid == uuid then
+            return i
+         end
+      end
+   end
+
    return -1
 end
 
 local function rcon_uuid_exists_for_local_index(local_index)
-   -- TODO: implement
-   rcon_log_info("checking for existing UUID for player " .. rcon_format_player_name(local_index))
-   return true
+   local player = gPlayerTable[local_index]
+   return player ~= nil and player.valid
+end
+
+local function rcon_uuid_generate()
+   -- TODO: generate a UUID
+   return "implement me!"
 end
 
 local function rcon_uuid_create_new(local_index)
-   -- TODO: implement
-   rcon_log_info("creating UUID entry for player " .. rcon_format_player_name(local_index))
-   return "DEADBEEF"
+   local uuid = rcon_uuid_generate(local_index)
+
+   gPlayerTable[local_index] = {
+      valid = true,
+      uuid = uuid,
+   }
+
+   rcon_log_info("assigned UUID " .. uuid .. " to player " .. rcon_format_player_name(local_index))
+   return uuid
 end
 
 local function rcon_uuid_remove(local_index)
@@ -104,8 +125,8 @@ local function rcon_uuid_remove(local_index)
       return
    end
 
-   -- TODO: implement
-   rcon_log_info("removing UUID entry for player " .. rcon_format_player_name(local_index))
+   rcon_log_info("removing UUID for player " .. rcon_format_player_name(local_index))
+   gPlayerTable[local_index].valid = false
    return
 end
 
