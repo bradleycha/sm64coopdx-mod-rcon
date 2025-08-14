@@ -25,6 +25,19 @@ local function rcon_text_error(message)
    return
 end
 
+local gHostPlayerIndex = -1;
+for _, network_player in ipairs(gNetworkPlayers) do
+   if network_player.type == NPT_SERVER then
+      gHostPlayerIndex = network_player.localIndex
+      break
+   end
+end
+
+local function rcon_send_packet_to_server(reliable, packet)
+   network_send_to(gHostPlayerIndex, reliable, packet)
+   return
+end
+
 local RCON_PACKET_TYPE_LOGIN           = 0
 local RCON_PACKET_TYPE_SEND            = 1
 local RCON_PACKET_TYPE_RESPONSE_LOGIN  = 2
@@ -38,6 +51,12 @@ local RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN          = 3
 local RCON_PACKET_RESPONSE_SEND_CODE_OK            = 0
 local RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED  = 1
 
+-- Note: we send command packets only to the host.  This is *extremely*
+-- important.  If we were to send it to anyone other than the host, then
+-- unauthorized players could see private IDs and impersonate us, sniff
+-- /rcon login attempts and steal passwords, and watch all /rcon send commands.
+-- This is private!!! Do not ever send this information to other players!!!
+
 local function rcon_send_packet_login(password)
    local packet = {
       type = RCON_PACKET_TYPE_LOGIN,
@@ -45,7 +64,7 @@ local function rcon_send_packet_login(password)
    }
 
    rcon_text_info("Logging into remote console")
-   network_send(true, packet)
+   rcon_send_packet_to_server(true, packet)
 end
 
 local function rcon_send_packet_send(message)
@@ -55,17 +74,17 @@ local function rcon_send_packet_send(message)
    }
 
    rcon_text_info("Sending remote console message")
-   network_send(true, packet)
+   rcon_send_packet_to_server(true, packet)
 end
 
 local function rcon_receive_packet_login(sender, password)
-   -- TODO: implement, make sure to use network_send_to(false, ...) for the response
+   -- TODO: implement, make sure to use network_send_to(sender, false, ...) for the response
    rcon_text_info("received login packet from " .. sender .. " with password " .. password)
    return
 end
 
 local function rcon_receive_packet_send(sender, message)
-   -- TODO: implement, make sure to use network_send_to(false, ...) for the response
+   -- TODO: implement, make sure to use network_send_to(sender, false, ...) for the response
    rcon_text_info("received send packet from " .. sender .. " with command " .. message)
    return
 end
@@ -106,13 +125,8 @@ local function rcon_receive_packet_response_send(code)
 end
 
 local function rcon_packet_receive_server(packet)
-   -- TODO: implement in a secure way.  due to the way the lua interface is
-   -- set up, we have to rely on the client to be honest about its player ID, as
-   -- there's no way to directly store a NetworkPlayer's ID or whatever from
-   -- lua.  The idea I have is we assign a secret value to every client on
-   -- join and transmit that to the client.  Then, every packet a client sends
-   -- should include both its ID and secret.  The server then checks and makes
-   -- sure they line up.  If they don't, then we know someone is tampering with
+   -- TODO: store/receive private UUIDs for each client and associate them in a
+   -- map to prevent attackers from impersonating authorized users by modifying
    -- the player ID.
    local sender = "[UNKNOWN]"
 
