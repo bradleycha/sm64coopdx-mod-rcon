@@ -38,8 +38,9 @@ local function rcon_send_packet_to_server(reliable, packet)
    return
 end
 
-local RCON_PACKET_TYPE_LOGIN                    = 0 -- Sent by client when logging in
-local RCON_PACKET_TYPE_SEND                     = 1 -- Sent by client when sending an rcon message
+local RCON_PACKET_TYPE_REQUEST_UUID             = 0 -- Sent by client when joining server and requesting UUID
+local RCON_PACKET_TYPE_LOGIN                    = 1 -- Sent by client when logging in
+local RCON_PACKET_TYPE_SEND                     = 2 -- Sent by client when sending an rcon message
 local RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC   = 0 -- Sent by server when an error occurred
 local RCON_PACKET_TYPE_RESPONSE_LOGIN           = 1 -- Sent by server when responding to a login request
 local RCON_PACKET_TYPE_RESPONSE_SEND            = 2 -- Sent by server when responding to a send request
@@ -57,6 +58,16 @@ local RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED  = 1
 -- unauthorized players could see private IDs and impersonate us, sniff
 -- /rcon login attempts and steal passwords, and watch all /rcon send commands.
 -- This is private!!! Do not ever send this information to other players!!!
+
+local function rcon_send_packet_request_uuid(global_index)
+   local packet = {
+      type = RCON_PACKET_TYPE_REQUEST_UUID,
+      global_index = global_index,
+   }
+
+   rcon_send_packet_to_server(true, packet)
+   return
+end
 
 local function rcon_send_packet_login(password)
    local packet = {
@@ -76,6 +87,12 @@ local function rcon_send_packet_send(message)
 
    rcon_text_info("Sending remote console message")
    rcon_send_packet_to_server(true, packet)
+end
+
+local function rcon_receive_packet_request_uuid(sender_global_index)
+   -- TODO: implement
+   rcon_text_info("received UUID request packet from " .. sender_global_index)
+   return
 end
 
 local function rcon_receive_packet_login(sender, password)
@@ -144,6 +161,8 @@ local function rcon_packet_receive_server(packet)
       rcon_receive_packet_login(sender, packet.password)
    elseif packet.type == RCON_PACKET_TYPE_SEND then
       rcon_receive_packet_send(sender, packet.message)
+   elseif packet.type == RCON_PACKET_TYPE_REQUEST_UUID then
+      rcon_receive_packet_request_uuid(packet.global_index)
    end
 
    return
@@ -168,6 +187,13 @@ local function rcon_packet_receive(packet)
    end
 
    rcon_packet_receive_client(packet)
+   return
+end
+
+local function rcon_join_game()
+   local global_index = network_global_index_from_local(0)
+
+   rcon_send_packet_request_uuid(global_index)
    return
 end
 
@@ -284,5 +310,6 @@ local function rcon_parse_cmd(message)
 end
 
 hook_event(HOOK_ON_PACKET_RECEIVE, rcon_packet_receive)
+hook_event(HOOK_JOINED_GAME, rcon_join_game)
 hook_chat_command("rcon", "Access the remote console", rcon_parse_cmd)
 
