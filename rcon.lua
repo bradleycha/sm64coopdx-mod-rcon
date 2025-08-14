@@ -82,6 +82,11 @@ local function rcon_send_packet_to_client(local_index, packet)
    return
 end
 
+local function rcon_uuid_to_local_index(uuid)
+   -- TODO: implement
+   return -1
+end
+
 local function rcon_uuid_exists_for_local_index(local_index)
    -- TODO: implement
    return true
@@ -90,6 +95,12 @@ end
 local function rcon_uuid_create_new(local_index)
    -- TODO: implement
    return "DEADBEEF"
+end
+
+local function rcon_uuid_remove(local_index)
+   -- TODO: implement
+   rcon_log_info("removing UUID entry for player " .. rcon_format_player_name(local_index))
+   return
 end
 
 local gClientUuid = -1;
@@ -136,6 +147,7 @@ end
 
 local function rcon_send_packet_login(password)
    local packet = {
+      uuid = rcon_uuid_get(),
       type = RCON_PACKET_TYPE_LOGIN,
       password = password,
    }
@@ -146,6 +158,7 @@ end
 
 local function rcon_send_packet_send(message)
    local packet = {
+      uuid = rcon_uuid_get(),
       type = RCON_PACKET_TYPE_SEND,
       message = message,
    }
@@ -177,14 +190,22 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
 end
 
 local function rcon_receive_packet_login(sender, password)
-   -- TODO: implement, make sure to use network_send_to(sender, false, ...) for the response
-   rcon_text_info("received login packet from " .. sender .. " with password " .. password)
+   -- TODO: implement
+   rcon_send_packet_to_client(sender, {
+      type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
+      code = RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN,
+   })
+
    return
 end
 
 local function rcon_receive_packet_send(sender, message)
-   -- TODO: implement, make sure to use network_send_to(sender, false, ...) for the response
-   rcon_text_info("received send packet from " .. sender .. " with command " .. message)
+   -- TODO: implement
+   rcon_send_packet_to_client(sender, {
+      type = RCON_PACKET_TYPE_RESPONSE_SEND,
+      code = RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED,
+   })
+
    return
 end
 
@@ -237,21 +258,29 @@ local function rcon_receive_packet_response_generic_error()
    return
 end
 
-local function rcon_packet_receive_server(packet)
-   -- TODO: store/receive private UUIDs for each client and associate them in a
-   -- map to prevent attackers from impersonating authorized users by modifying
-   -- the player ID.
-   local sender = "[UNKNOWN]"
+local function rcon_packet_receive_server_uuid(packet)
+   local sender = rcon_uuid_to_local_index(packet.uuid)
+   if sender == -1 then
+      rcon_log_warning("received packet with invalid UUID " .. packet.uuid)
+      return
+   end
 
    if packet.type == RCON_PACKET_TYPE_LOGIN then
       rcon_receive_packet_login(sender, packet.password)
    elseif packet.type == RCON_PACKET_TYPE_SEND then
       rcon_receive_packet_send(sender, packet.message)
-   elseif packet.type == RCON_PACKET_TYPE_REQUEST_UUID then
-      rcon_receive_packet_request_uuid(packet.global_index)
    end
 
    return
+end
+
+local function rcon_packet_receive_server(packet)
+   if packet.type == RCON_PACKET_TYPE_REQUEST_UUID then
+      rcon_receive_packet_request_uuid(packet.global_index)
+      return
+   end
+
+   rcon_packet_receive_server_uuid(packet)
 end
 
 local function rcon_packet_receive_client(packet)
@@ -396,6 +425,9 @@ local function rcon_parse_cmd(message)
 
    return true
 end
+
+-- TODO: create custom hook when a player leaves from the server's perspective
+-- so we can deregister their UUID
 
 hook_event(HOOK_ON_PACKET_RECEIVE, rcon_packet_receive)
 hook_event(HOOK_JOINED_GAME, rcon_join_game)
