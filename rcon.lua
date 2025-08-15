@@ -149,6 +149,7 @@ local RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC   = 0 -- Sent by server when an er
 local RCON_PACKET_TYPE_RESPONSE_REQUEST_UUID    = 1 -- Sent by server when a UUID is assigned to a client
 local RCON_PACKET_TYPE_RESPONSE_LOGIN           = 2 -- Sent by server when responding to a login request
 local RCON_PACKET_TYPE_RESPONSE_SEND            = 3 -- Sent by server when responding to a send request
+local RCON_PACKET_TYPE_DEAUTHORIZED             = 4 -- Sent by server when a player has been deauthorized
 
 local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
 local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
@@ -286,9 +287,21 @@ local function rcon_set_password(password)
    return
 end
 
-local function rcon_deauth()
-   -- TODO: implement
-   rcon_log_info("deauthorize all users")
+local function rcon_deauthall()
+   for i, player in ipairs(gRconPlayerTable) do
+      if player.valid and player.access then
+         player.access = false
+         rcon_send_packet_to_client(i, {
+            type = RCON_PACKET_TYPE_DEAUTHORIZED,
+         })
+
+         local name = rcon_format_player_name(i)
+         local log_message = "Deauthorizing player " .. name
+         rcon_log_info(log_message)
+         rcon_text_info(log_message)
+      end
+   end
+   
    return
 end
 
@@ -426,6 +439,11 @@ local function rcon_receive_packet_response_request_uuid(assigned_uuid)
    return
 end
 
+local function rcon_receive_packet_deauthorized()
+   rcon_text_warning("You have been deauthorized from the remote console")
+   return
+end
+
 local function rcon_receive_packet_response_generic_error()
    -- These are received when we don't want to notify the client of the specifc
    -- cause of the error.  This is useful when invalid data is sent, which may
@@ -467,6 +485,8 @@ local function rcon_packet_receive_client(packet)
       rcon_receive_packet_response_send(packet.code)
    elseif packet.type == RCON_PACKET_TYPE_RESPONSE_REQUEST_UUID then
       rcon_receive_packet_response_request_uuid(packet.assigned_uuid)
+   elseif packet.type == RCON_PACKET_TYPE_DEAUTHORIZED then
+      rcon_receive_packet_deauthorized()
    elseif packet.type == RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC then
       rcon_receive_packet_response_generic_error()
    end
@@ -514,7 +534,7 @@ local function rcon_parse_cmd_help()
       "\\#a0a0a0\\   login \\#9090f0\\[password]\\#ffffff\\ - Authenticate with the server to get remote console privilege\n" ..
       "\\#a0a0a0\\   send \\#9090f0\\[message]\\#ffffff\\ - Remotely send a chat message as the host\n" ..
       "\\#a0a0a0\\   password \\#9090f0\\[password]\\#ffffff\\ - Set the remote console password\n" ..
-      "\\#a0a0a0\\   deauth\\#ffffff\\ - Deauthorize all players from the remote console\n" ..
+      "\\#a0a0a0\\   deauthall\\#ffffff\\ - Deauthorize all players from the remote console\n" ..
       "\\#a0a0a0\\   max-attempts \\#9090f0\\[count]\\#ffffff\\ - Set the maximum allowed number of login attempts"
    )
 
@@ -566,9 +586,9 @@ local function rcon_parse_cmd_password(password)
    return
 end
 
-local function rcon_parse_cmd_deauth(arg)
+local function rcon_parse_cmd_deauthall(arg)
    if arg ~= nil then
-      rcon_text_error("Unexpected argument for deauth remote console command")
+      rcon_text_error("Unexpected argument for deauthall remote console command")
       return
    end
 
@@ -577,7 +597,7 @@ local function rcon_parse_cmd_deauth(arg)
       return
    end
 
-   rcon_deauth()
+   rcon_deauthall()
    return
 end
 
@@ -632,8 +652,8 @@ local function rcon_parse_cmd(message)
       rcon_parse_cmd_send(arg)
    elseif cmd == "password" then
       rcon_parse_cmd_password(arg)
-   elseif cmd == "deauth" then
-      rcon_parse_cmd_deauth(arg)
+   elseif cmd == "deauthall" then
+      rcon_parse_cmd_deauthall(arg)
    elseif cmd == "max-attempts" then
       rcon_parse_cmd_max_attempts(arg)
    else
