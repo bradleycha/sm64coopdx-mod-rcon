@@ -266,8 +266,13 @@ end
 local RCON_PASSWORD_SALT_CHARACTERS = 16
 
 local function rcon_generate_password_salt()
-   -- TODO: use random characters for more variety, thus security
-   return tostring(math.random(0, math.maxinteger))
+   local salt = ""
+
+   for _ = 1, RCON_PASSWORD_SALT_CHARACTERS do
+      salt = salt .. string.char(math.random(33, 126))
+   end
+
+   return salt
 end
 
 local function rcon_set_password(password)
