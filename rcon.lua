@@ -156,7 +156,6 @@ local RCON_PACKET_TYPE_DEAUTHORIZED             = 4 -- Sent by server when a pla
 local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
 local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
 local RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD       = 2
-local RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN          = 3
 
 local RCON_PACKET_RESPONSE_SEND_CODE_OK            = 0
 local RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED  = 1
@@ -341,9 +340,11 @@ local function rcon_receive_packet_login(sender, password)
       rcon_log_warning(log_message)
       rcon_text_warning(log_message)
 
+      -- If someone is trying to brute force the password, we lie to them and
+      -- claim the password is incorrect, even if they get it correct this time.
       rcon_send_packet_to_client(sender, {
          type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
-         code = RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN,
+         code = RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD,
       })
       return
    end
@@ -424,8 +425,6 @@ local function rcon_receive_packet_response_login(code)
       rcon_text_warning("You are already authorized with the remote console")
    elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD then
       rcon_text_error("Incorrect password for remote console")
-   elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_FORBIDDEN then
-      rcon_text_error("You are forbidden from logging into the remote console")
    end
 
    return
