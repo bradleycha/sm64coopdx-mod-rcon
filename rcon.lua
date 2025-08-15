@@ -118,6 +118,7 @@ local function rcon_uuid_create_new(local_index)
       failed_login_attempts = 0,
       forbidden = false,
       access = false,
+      timestamp_last_login_attempt = -1
    }
 
    rcon_log_info("assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
@@ -156,6 +157,7 @@ local RCON_PACKET_TYPE_DEAUTHORIZED             = 4 -- Sent by server when a pla
 local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
 local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
 local RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD       = 2
+local RCON_PACKET_RESPONSE_LOGIN_CODE_THROTTLE           = 3
 
 local RCON_PACKET_RESPONSE_SEND_CODE_OK            = 0
 local RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED  = 1
@@ -221,12 +223,18 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
 end
 
 local RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS   = "rcon_maximum_login_attempts"
+local RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION   = "rcon_login_timeout_duration"
 local RCON_SAVE_KEY_PASSWORD_HASH            = "rcon_password_hash"
 local RCON_SAVE_KEY_PASSWORD_SALT            = "rcon_password_salt"
 
 local gRconMaximumLoginAttempts = 5
 if mod_storage_exists(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS) then
    gRconMaximumLoginAttempts = mod_storage_load_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS)
+end
+
+local gRconLoginTimeoutDuration = 90
+if mod_storage_exists(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION) then
+   gRconLoginTimeoutDuration = mod_storage_load_number(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION)
 end
 
 local gRconPasswordHash = nil
@@ -335,6 +343,25 @@ local function rcon_receive_packet_login(sender, password)
       return
    end
 
+   local timestamp_prev = player.timestamp_last_login_attempt
+   local timestamp_curr = get_global_timer()
+   if timestamp_prev ~= -1 then
+      local duration = timestamp_curr - timestamp_prev
+
+      if duration < gRconLoginTimeoutDuration then
+         local log_message = "Player " .. name .. " attempted to login too quickly (" .. tostring(duration) ..  " ticks) after a previously failed login attempt"
+         rcon_log_warning(log_message)
+         rcon_text_warning(log_message)
+
+         rcon_send_packet_to_client(sender, {
+            type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
+            code = RCON_PACKET_RESPONSE_LOGIN_CODE_THROTTLE,
+         })
+         return
+      end
+   end
+   player.timestamp_last_login_attempt = timestamp_curr
+
    if player.forbidden then
       local log_message = "Forbidden player " .. name .. " attempted to login to the remote console"
       rcon_log_warning(log_message)
@@ -425,6 +452,8 @@ local function rcon_receive_packet_response_login(code)
       rcon_text_warning("You are already authorized with the remote console")
    elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD then
       rcon_text_error("Incorrect password for remote console")
+   elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_THROTTLE then
+      rcon_text_error("Please wait longer until the next login attempt")
    end
 
    return
