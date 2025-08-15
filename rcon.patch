@@ -1,3 +1,5 @@
+Copyright (c) Chase Bradley 2025
+
 diff --git a/autogen/lua_definitions/manual.lua b/autogen/lua_definitions/manual.lua
 index 76ad0d265..a49f03d10 100644
 --- a/autogen/lua_definitions/manual.lua
