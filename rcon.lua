@@ -279,12 +279,28 @@ local function rcon_set_password(password)
    mod_storage_save(RCON_SAVE_KEY_PASSWORD_HASH, hash)
    mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt)
 
+   local log_message = "Set password to \'" .. hash .. "\' with salt \'" .. salt .. "\'"
+   rcon_log_info(log_message)
+   rcon_text_info(log_message)
+
    return
 end
 
 local function rcon_deauth()
    -- TODO: implement
    rcon_log_info("deauthorize all users")
+   return
+end
+
+local function rcon_set_maximum_attempts(attempts)
+   gRconMaximumLoginAttempts = attempts
+
+   mod_storage_save_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS, attempts)
+
+   local log_message = "Set maximum login attempts to " .. tostring(attempts)
+   rcon_log_info(log_message)
+   rcon_text_info(log_message)
+
    return
 end
 
@@ -490,7 +506,8 @@ local function rcon_parse_cmd_help()
       "\\#a0a0a0\\   login \\#9090f0\\[password]\\#ffffff\\ - Authenticate with the server to get remote console privilege\n" ..
       "\\#a0a0a0\\   send \\#9090f0\\[message]\\#ffffff\\ - Remotely send a chat message as the host\n" ..
       "\\#a0a0a0\\   password \\#9090f0\\[password]\\#ffffff\\ - Set the remote console password\n" ..
-      "\\#a0a0a0\\   deauth\\#ffffff\\ - Deauthorize all players from the remote console"
+      "\\#a0a0a0\\   deauth\\#ffffff\\ - Deauthorize all players from the remote console\n" ..
+      "\\#a0a0a0\\   max-attempts \\#9090f0\\[count]\\#ffffff\\ - Set the maximum allowed number of login attempts"
    )
 
    return
@@ -556,6 +573,27 @@ local function rcon_parse_cmd_deauth(arg)
    return
 end
 
+local function rcon_parse_cmd_max_attempts(attempts)
+   if attempts == nil then
+      rcon_text_error("Expected login attempts count")
+      return
+   end
+
+   local attempts_int = tonumber(attempts)
+   if attempts_int == nil or attempts_int <= 0 then
+      rcon_text_error("Login attempts count must be a positive integer")
+      return
+   end
+
+   if not network_is_server() then
+      rcon_text_error("Only the host may set the maximum login attempts")
+      return
+   end
+
+   rcon_set_maximum_attempts(attempts_int)
+   return
+end
+
 local function rcon_tokenize_cmd(message)
    -- splits the message on the first space character
    for i = 1, #message do
@@ -588,6 +626,8 @@ local function rcon_parse_cmd(message)
       rcon_parse_cmd_password(arg)
    elseif cmd == "deauth" then
       rcon_parse_cmd_deauth(arg)
+   elseif cmd == "max-attempts" then
+      rcon_parse_cmd_max_attempts(arg)
    else
       rcon_text_error("Unknown remote console command")
    end
