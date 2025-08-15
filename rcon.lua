@@ -39,10 +39,10 @@ local function rcon_log_error(message)
    log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_ERROR)
 end
 
-local gHostPlayerIndex = -1;
+local gRconHostPlayerIndex = -1;
 for _, network_player in ipairs(gNetworkPlayers) do
    if network_player.type == NPT_SERVER then
-      gHostPlayerIndex = network_player.localIndex
+      gRconHostPlayerIndex = network_player.localIndex
       break
    end
 end
@@ -72,7 +72,7 @@ end
 
 local function rcon_send_packet_to_server(packet)
    -- TODO: implement packet encryption
-   network_send_to(gHostPlayerIndex, true, packet)
+   network_send_to(gRconHostPlayerIndex, true, packet)
    return
 end
 
@@ -83,11 +83,11 @@ local function rcon_send_packet_to_client(local_index, packet)
 end
 
 -- Stores all player information, except for gNetworkPlayers[0], which is the host
-local gPlayerTable = {}
-gPlayerTable[MAX_PLAYERS - 1] = nil
+local gRconPlayerTable = {}
+gRconPlayerTable[MAX_PLAYERS - 1] = nil
 
 local function rcon_uuid_to_local_index(uuid)
-   for i, player in ipairs(gPlayerTable) do
+   for i, player in ipairs(gRconPlayerTable) do
       if player ~= nil and player.valid then
          if player.uuid == uuid then
             return i
@@ -99,7 +99,7 @@ local function rcon_uuid_to_local_index(uuid)
 end
 
 local function rcon_uuid_exists_for_local_index(local_index)
-   local player = gPlayerTable[local_index]
+   local player = gRconPlayerTable[local_index]
    return player ~= nil and player.valid
 end
 
@@ -110,7 +110,7 @@ end
 local function rcon_uuid_create_new(local_index)
    local uuid = rcon_uuid_generate(local_index)
 
-   gPlayerTable[local_index] = {
+   gRconPlayerTable[local_index] = {
       valid = true,
       uuid = uuid,
       failed_login_attempts = 0,
@@ -128,18 +128,18 @@ local function rcon_uuid_remove(local_index)
    end
 
    rcon_log_info("removing UUID for player " .. rcon_format_player_name(local_index))
-   gPlayerTable[local_index].valid = false
+   gRconPlayerTable[local_index].valid = false
    return
 end
 
-local gClientUuid = -1;
+local gRconClientUuid = -1;
 local function rcon_uuid_store(assigned_uuid)
-   gClientUuid = assigned_uuid
+   gRconClientUuid = assigned_uuid
    return
 end
 
 local function rcon_uuid_get()
-   return gClientUuid
+   return gRconClientUuid
 end
 
 local RCON_PACKET_TYPE_REQUEST_UUID             = 0 -- Sent by client when joining server and requesting UUID
@@ -218,16 +218,68 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
    return
 end
 
-local gMaximumLoginAttempts = 3
+local RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS   = "rcon_maximum_login_attempts"
+local RCON_SAVE_KEY_PASSWORD_HASH            = "rcon_password_hash"
+local RCON_SAVE_KEY_PASSWORD_SALT            = "rcon_password_salt"
+
+local gRconMaximumLoginAttempts = 3
+if mod_storage_exists(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS) then
+   gRconMaximumLoginAttempts = mod_storage_load_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS)
+end
+
+local gRconPasswordHash = nil
+if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_HASH) then
+   gRconPasswordHash = mod_storage_load(RCON_SAVE_KEY_PASSWORD_HASH)
+end
+
+local gRconPasswordSalt = nil
+if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_SALT) then
+   gRconPasswordSalt = mod_storage_load(RCON_SAVE_KEY_PASSWORD_SALT)
+end
+
+local function rcon_salt_and_hash_password(password, salt)
+   local password_salted = password .. salt
+
+   -- TODO: implement hashing, this will require extending the lua API to
+   -- provide cryptographic functions, particularly one of the SHA2 functions.
+   -- right now, if your rcon.sav file gets leaked, your password is out in the
+   -- open for attackers to steal.  please implement this!
+   return password
+end
 
 local function rcon_check_password(password)
-   -- TODO: implement
-   return false
+   if gRconPasswordHash == nil then
+      rcon_log_error("missing password hash value from save file, unable to verify password")
+      return false
+   end
+   if gRconPasswordSalt == nil then
+      rcon_log_error("missing password salt value from save file, unable to verify password")
+      return false
+   end
+
+   local hash = rcon_salt_and_hash_password(password, gRconPasswordSalt)
+
+   return hash == gRconPasswordHash
+end
+
+local RCON_PASSWORD_SALT_CHARACTERS = 16
+
+local function rcon_generate_password_salt()
+   -- TODO: use random characters for more variety, thus security
+   return tostring(math.random(0, math.maxinteger))
 end
 
 local function rcon_set_password(password)
-   -- TODO: implement
-   rcon_log_info("set password to " .. password)
+   local salt = rcon_generate_password_salt()
+   local hash = rcon_salt_and_hash_password(password, salt)
+
+   gRconPasswordHash = hash
+   gRconPasswordSalt = salt
+
+   mod_storage_save(RCON_SAVE_KEY_PASSWORD_HASH, hash)
+   mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt)
+
+   return
 end
 
 local function rcon_deauth()
@@ -237,7 +289,7 @@ local function rcon_deauth()
 end
 
 local function rcon_receive_packet_login(sender, password)
-   local player = gPlayerTable[sender]
+   local player = gRconPlayerTable[sender]
    local name = rcon_format_player_name(sender)
 
    if player.forbidden then
@@ -275,7 +327,7 @@ local function rcon_receive_packet_login(sender, password)
    rcon_log_warning(log_message)
    rcon_text_warning(log_message)
 
-   if player.failed_login_attempts >= gMaximumLoginAttempts then
+   if player.failed_login_attempts >= gRconMaximumLoginAttempts then
       local log_message = "Player " .. name .. " surpassed maximum number of invalid login attempts, forbidding future login attempts"
       rcon_log_warning(log_message)
       rcon_text_warning(log_message)
@@ -291,7 +343,7 @@ local function rcon_receive_packet_login(sender, password)
 end
 
 local function rcon_receive_packet_send(sender, message)
-   local player = gPlayerTable[sender]
+   local player = gRconPlayerTable[sender]
    local name = rcon_format_player_name(sender)
 
    if not player.access then
