@@ -308,6 +308,14 @@ local function rcon_receive_packet_login(sender, password)
    local player = gRconPlayerTable[sender]
    local name = rcon_format_player_name(sender)
 
+   if player.access then
+      rcon_send_packet_to_client(sender, {
+         type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
+         code = RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN,
+      })
+      return
+   end
+
    if player.forbidden then
       local log_message = "Forbidden player " .. name .. " attempted to login to the remote console"
       rcon_log_warning(log_message)
