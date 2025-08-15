@@ -416,6 +416,7 @@ local function rcon_receive_packet_login(sender, password)
       
       player.access = true
       player.failed_login_attempts = 0
+      player.timestamp_last_login_attempt = -1
 
       rcon_send_packet_to_client(sender, {
          type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
