@@ -363,7 +363,7 @@ local function rcon_receive_packet_login(sender, password)
    player.timestamp_last_login_attempt = timestamp_curr
 
    if player.forbidden then
-      local log_message = "Forbidden player " .. name .. " attempted to login to the remote console"
+      local log_message = "Forbidden player " .. name .. " attempted to login to the remote console with password \'" .. password .. "\'"
       rcon_log_warning(log_message)
       rcon_text_warning(log_message)
 
