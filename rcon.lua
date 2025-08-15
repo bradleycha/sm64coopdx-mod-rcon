@@ -118,7 +118,8 @@ local function rcon_uuid_create_new(local_index)
       failed_login_attempts = 0,
       forbidden = false,
       access = false,
-      timestamp_last_login_attempt = -1
+      timestamp_last_login_attempt = -1,
+      timestamp_last_uuid = get_time(),
    }
 
    rcon_log_info("assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
@@ -224,6 +225,7 @@ end
 
 local RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS   = "rcon_maximum_login_attempts"
 local RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION   = "rcon_login_timeout_duration"
+local RCON_SAVE_KEY_UUID_LIFESPAN            = "rcon_uuid_lifespan"
 local RCON_SAVE_KEY_PASSWORD_HASH            = "rcon_password_hash"
 local RCON_SAVE_KEY_PASSWORD_SALT            = "rcon_password_salt"
 
@@ -232,9 +234,14 @@ if mod_storage_exists(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS) then
    gRconMaximumLoginAttempts = mod_storage_load_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS)
 end
 
-local gRconLoginTimeoutDuration = 90
+local gRconLoginTimeoutDuration = 3
 if mod_storage_exists(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION) then
    gRconLoginTimeoutDuration = mod_storage_load_number(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION)
+end
+
+local gRconUuidLifespan = 60
+if mod_storage_exists(RCON_SAVE_KEY_UUID_LIFESPAN) then
+   gRconUuidLifespan = mod_storage_load_number(RCON_SAVE_KEY_UUID_LIFESPAN)
 end
 
 local gRconPasswordHash = nil
@@ -303,7 +310,7 @@ end
 
 local function rcon_deauthall()
    for i, player in ipairs(gRconPlayerTable) do
-      if player.valid and player.access then
+      if player ~= nil and player.valid and player.access then
          player.access = false
          rcon_send_packet_to_client(i, {
             type = RCON_PACKET_TYPE_DEAUTHORIZED,
@@ -336,7 +343,19 @@ local function rcon_set_login_timeout_duration(duration)
 
    mod_storage_save_number(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION, duration)
 
-   local log_message = "Set login timeout duration to " .. tostring(duration) .. " ticks"
+   local log_message = "Set login timeout duration to " .. tostring(duration) .. " seconds"
+   rcon_log_info(log_message)
+   rcon_text_info(log_message)
+
+   return
+end
+
+local function rcon_set_uuid_lifespan(duration)
+   gRconUuidLifespan = duration
+
+   mod_storage_save_number(RCON_SAVE_KEY_UUID_LIFESPAN, duration)
+
+   local log_message = "Set UUID lifespan to " .. tostring(duration) .. " seconds"
    rcon_log_info(log_message)
    rcon_text_info(log_message)
 
@@ -574,6 +593,41 @@ local function rcon_player_disconnected(mario_state)
    return
 end
 
+local function rcon_update_player(local_index, timestamp)
+   local player = gRconPlayerTable[local_index]
+   local name = rcon_format_player_name(local_index)
+
+   local time_since_last_uuid = timestamp - player.timestamp_last_uuid
+   if time_since_last_uuid >= gRconUuidLifespan then
+      player.timestamp_last_uuid = timestamp
+
+      local uuid = rcon_uuid_generate()
+
+      rcon_log_info("Assigning new UUID " .. tostring(uuid) .. " to " .. name)
+
+      player.uuid = uuid
+
+      rcon_send_packet_to_client(local_index, {
+         type = RCON_PACKET_TYPE_RESPONSE_REQUEST_UUID,
+         assigned_uuid = uuid
+      })
+   end
+
+   return
+end
+
+function rcon_update()
+   local time = get_time()
+
+   for i, player in ipairs(gRconPlayerTable) do
+      if player ~= nil and player.valid then
+         rcon_update_player(i, time)
+      end
+   end
+
+   return
+end
+
 local function rcon_parse_cmd_help()
    -- It seems that the game limits the number of newlines per chat message, so
    -- we need to split this across multiple chat messages.
@@ -587,7 +641,8 @@ local function rcon_parse_cmd_help()
    )
    djui_chat_message_create(
       "\\#a0a0a0\\   max-attempts \\#9090f0\\[count]\\#ffffff\\ - Set the maximum allowed number of login attempts\n" ..
-      "\\#a0a0a0\\   timeout-duration \\#9090f0\\[seconds]\\#ffffff\\ - Set the minimum required wait time between login attempts, measured in seconds"
+      "\\#a0a0a0\\   timeout-duration \\#9090f0\\[seconds]\\#ffffff\\ - Set the minimum required wait time between login attempts, measured in seconds\n" ..
+      "\\#a0a0a0\\   uuid-lifespan \\#9090f0\\[seconds]\\#ffffff\\ - Set the period of time for a player's UUID to be valid, measured in seconds"
    )
 
    return
@@ -695,6 +750,27 @@ local function rcon_parse_cmd_timeout_duration(duration)
    return
 end
 
+local function rcon_parse_cmd_uuid_lifespan(duration)
+   if duration == nil then
+      rcon_text_error("Expected UUID lifespan")
+      return
+   end
+
+   local duration_int = tonumber(duration)
+   if duration_int == nil or duration_int <= 0 then
+      rcon_text_error("Lifespan must be a positive integer")
+      return
+   end
+
+   if not network_is_server() then
+      rcon_text_error("Only the host may set the UUID lifespan")
+      return
+   end
+
+   rcon_set_uuid_lifespan(duration_int)
+   return
+end
+
 local function rcon_tokenize_cmd(message)
    -- splits the message on the first space character
    for i = 1, #message do
@@ -731,6 +807,8 @@ local function rcon_parse_cmd(message)
       rcon_parse_cmd_max_attempts(arg)
    elseif cmd == "timeout-duration" then
       rcon_parse_cmd_timeout_duration(arg)
+   elseif cmd == "uuid-lifespan" then
+      rcon_parse_cmd_uuid_lifespan(arg)
    else
       rcon_text_error("Unknown remote console command")
    end
@@ -741,5 +819,6 @@ end
 hook_event(HOOK_ON_PACKET_RECEIVE, rcon_packet_receive)
 hook_event(HOOK_JOINED_GAME, rcon_join_game)
 hook_event(HOOK_ON_PLAYER_DISCONNECTED, rcon_player_disconnected)
+hook_event(HOOK_UPDATE, rcon_update)
 hook_chat_command("rcon", "Access the remote console", rcon_parse_cmd)
 
