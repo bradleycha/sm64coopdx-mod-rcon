@@ -331,6 +331,18 @@ local function rcon_set_maximum_attempts(attempts)
    return
 end
 
+local function rcon_set_login_timeout_duration(duration)
+   gRconLoginTimeoutDuration = duration
+
+   mod_storage_save_number(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION, duration)
+
+   local log_message = "Set login timeout duration to " .. tostring(duration) .. " ticks"
+   rcon_log_info(log_message)
+   rcon_text_info(log_message)
+
+   return
+end
+
 local function rcon_receive_packet_login(sender, password)
    local player = gRconPlayerTable[sender]
    local name = rcon_format_player_name(sender)
@@ -563,14 +575,19 @@ local function rcon_player_disconnected(mario_state)
 end
 
 local function rcon_parse_cmd_help()
+   -- It seems that the game limits the number of newlines per chat message, so
+   -- we need to split this across multiple chat messages.
    djui_chat_message_create(
       "\\#f0a0a0\\Remote console command list:\n" ..
       "\\#a0a0a0\\   help\\#ffffff\\ - Display the help menu\n" ..
       "\\#a0a0a0\\   login \\#9090f0\\[password]\\#ffffff\\ - Authenticate with the server to get remote console privilege\n" ..
       "\\#a0a0a0\\   send \\#9090f0\\[message]\\#ffffff\\ - Remotely send a chat message as the host\n" ..
       "\\#a0a0a0\\   password \\#9090f0\\[password]\\#ffffff\\ - Set the remote console password\n" ..
-      "\\#a0a0a0\\   deauthall\\#ffffff\\ - Deauthorize all players from the remote console\n" ..
-      "\\#a0a0a0\\   max-attempts \\#9090f0\\[count]\\#ffffff\\ - Set the maximum allowed number of login attempts"
+      "\\#a0a0a0\\   deauthall\\#ffffff\\ - Deauthorize all players from the remote console"
+   )
+   djui_chat_message_create(
+      "\\#a0a0a0\\   max-attempts \\#9090f0\\[count]\\#ffffff\\ - Set the maximum allowed number of login attempts\n" ..
+      "\\#a0a0a0\\   timeout-duration \\#9090f0\\[ticks]\\#ffffff\\ - Set the minimum required wait time between login attempts, measured in ticks"
    )
 
    return
@@ -657,6 +674,27 @@ local function rcon_parse_cmd_max_attempts(attempts)
    return
 end
 
+local function rcon_parse_cmd_timeout_duration(duration)
+   if duration == nil then
+      rcon_text_error("Expected timeout duration")
+      return
+   end
+
+   local duration_int = tonumber(duration)
+   if duration_int == nil or duration_int < 0 then
+      rcon_text_error("Login timeout duration must be a non-negative integer")
+      return
+   end
+
+   if not network_is_server() then
+      rcon_text_error("Only the host may set the login timeout duration")
+      return
+   end
+
+   rcon_set_login_timeout_duration(duration_int)
+   return
+end
+
 local function rcon_tokenize_cmd(message)
    -- splits the message on the first space character
    for i = 1, #message do
@@ -691,6 +729,8 @@ local function rcon_parse_cmd(message)
       rcon_parse_cmd_deauthall(arg)
    elseif cmd == "max-attempts" then
       rcon_parse_cmd_max_attempts(arg)
+   elseif cmd == "timeout-duration" then
+      rcon_parse_cmd_timeout_duration(arg)
    else
       rcon_text_error("Unknown remote console command")
    end
