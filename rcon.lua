@@ -356,7 +356,7 @@ local function rcon_receive_packet_login(sender, password)
    end
 
    local timestamp_prev = player.timestamp_last_login_attempt
-   local timestamp_curr = get_global_timer()
+   local timestamp_curr = get_time()
    if timestamp_prev ~= -1 then
       local duration = timestamp_curr - timestamp_prev
 
@@ -587,7 +587,7 @@ local function rcon_parse_cmd_help()
    )
    djui_chat_message_create(
       "\\#a0a0a0\\   max-attempts \\#9090f0\\[count]\\#ffffff\\ - Set the maximum allowed number of login attempts\n" ..
-      "\\#a0a0a0\\   timeout-duration \\#9090f0\\[ticks]\\#ffffff\\ - Set the minimum required wait time between login attempts, measured in ticks"
+      "\\#a0a0a0\\   timeout-duration \\#9090f0\\[seconds]\\#ffffff\\ - Set the minimum required wait time between login attempts, measured in seconds"
    )
 
    return

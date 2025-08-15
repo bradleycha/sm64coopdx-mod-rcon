@@ -58,12 +58,12 @@ To change the maximum allowed login attempts, type the following command:
 
 If a player tries to login too quickly after a failed login attempt, the login
 attempt will be rejected, even if the password is correct.  This duration is
-measured in ticks, where there are 30 ticks in one second.
+measured in seconds.
 
 To change the login timeout duration, type the following command:
 
 ```
-/rcon timeout-duration [ticks]
+/rcon timeout-duration [seconds]
 ```
 
 ### Monitoring Player Activity
