@@ -222,7 +222,7 @@ local RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS   = "rcon_maximum_login_attempts"
 local RCON_SAVE_KEY_PASSWORD_HASH            = "rcon_password_hash"
 local RCON_SAVE_KEY_PASSWORD_SALT            = "rcon_password_salt"
 
-local gRconMaximumLoginAttempts = 3
+local gRconMaximumLoginAttempts = 5
 if mod_storage_exists(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS) then
    gRconMaximumLoginAttempts = mod_storage_load_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS)
 end
@@ -244,7 +244,7 @@ local function rcon_salt_and_hash_password(password, salt)
    -- provide cryptographic functions, particularly one of the SHA2 functions.
    -- right now, if your rcon.sav file gets leaked, your password is out in the
    -- open for attackers to steal.  please implement this!
-   return password
+   return password_salted
 end
 
 local function rcon_check_password(password)
@@ -323,7 +323,7 @@ local function rcon_receive_packet_login(sender, password)
 
    player.failed_login_attempts = player.failed_login_attempts + 1
 
-   local log_message = "Player " .. name .. " attempted to login to the remote console with incorrect password \'" .. password .. "\'"
+   local log_message = "Player " .. name .. " attempted to login to the remote console with incorrect password \'" .. password .. "\', they have " .. tostring(gRconMaximumLoginAttempts - player.failed_login_attempts) .. " login attempts remaining"
    rcon_log_warning(log_message)
    rcon_text_warning(log_message)
 
