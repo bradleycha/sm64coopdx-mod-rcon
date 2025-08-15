@@ -1,4 +1,4 @@
-# Remote Console
+# Remote Console v1.0.0
 
 A mod for Super Mario 64 Online Coop Deluxe which allows for players to remotely
 commands and messages from the host.
@@ -59,8 +59,8 @@ To change the maximum allowed login attempts, type the following command:
 Due to the sensitive nature of the remote console, extensive logging is
 performed during operation.  You can view log messages in the in-game console,
 and some of the more important log messages are sent to the host's chat box.  As
-of version `1.3.2`, logging lua console output to `stdout` requires patches to
-the server.  This is important for those looking to run a headless server, as
-logging malicious player activity for server networks could be extremely
-valuable.
+of `sm64coopdx` version `1.3.2`, logging lua console output to `stdout` requires
+patches to the server.  This is important for those looking to run a headless
+server, as logging malicious player activity for server networks could be
+extremely valuable.
 
