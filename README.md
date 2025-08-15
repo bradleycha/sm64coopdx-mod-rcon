@@ -66,6 +66,20 @@ To change the login timeout duration, type the following command:
 /rcon timeout-duration [seconds]
 ```
 
+### Changing the UUID lifespan
+
+Each player is assigned a private 64-bit UUID.  If an attacker gains another
+player's UUID, that attacker can impersonate the player.  Thus, we want to make
+sure this never happens.  To help prevent this, UUIDs are only valid for a
+period of time.  Once a UUID expires, a new one is generated and sent to the
+corresponding player.
+
+To change how often UUIDs are regenerated, use the following command:
+
+```
+/rcon uuid-lifespan [seconds]
+```
+
 ### Monitoring Player Activity
 
 Due to the sensitive nature of the remote console, extensive logging is
