@@ -41,6 +41,44 @@ local function rcon_log_error(message)
    log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_ERROR)
 end
 
+local function rcon_base16_encode_character(num)
+   if num <= 9 then
+      return string.char(num + 48)
+   end
+
+   return string.char(num + 97)
+end
+
+local function rcon_base16_encode(data)
+   local str = ""
+
+   for i = 1, #data do
+      local byte = string.byte(data:sub(i,i))
+      local hexits = string.format("%x", byte)
+      str = str .. hexits
+   end
+
+   return str
+end
+
+local function rcon_base16_decode(str)
+   local data = ""
+
+   for i = 1, #str/2 do
+      local hexits = str:sub(i*2 - 1, i*2)
+      
+      local byte = tonumber("0x" .. hexits)
+      if byte == nil then
+         rcon_log_error("failed to decode base-16 string \'" .. str .. "\'")
+         return
+      end
+
+      data = data .. string.char(byte)
+   end
+
+   return data
+end
+
 local gRconHostPlayerIndex = -1;
 for _, network_player in ipairs(gNetworkPlayers) do
    if network_player.type == NPT_SERVER then
@@ -246,12 +284,12 @@ end
 
 local gRconPasswordHash = nil
 if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_HASH) then
-   gRconPasswordHash = mod_storage_load(RCON_SAVE_KEY_PASSWORD_HASH)
+   gRconPasswordHash = rcon_base16_decode(mod_storage_load(RCON_SAVE_KEY_PASSWORD_HASH))
 end
 
 local gRconPasswordSalt = nil
 if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_SALT) then
-   gRconPasswordSalt = mod_storage_load(RCON_SAVE_KEY_PASSWORD_SALT)
+   gRconPasswordSalt = rcon_base16_decode(mod_storage_load(RCON_SAVE_KEY_PASSWORD_SALT))
 end
 
 local function rcon_salt_and_hash_password(password, salt)
@@ -298,10 +336,13 @@ local function rcon_set_password(password)
    gRconPasswordHash = hash
    gRconPasswordSalt = salt
 
-   mod_storage_save(RCON_SAVE_KEY_PASSWORD_HASH, hash)
-   mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt)
+   local hash_base16 = rcon_base16_encode(hash)
+   local salt_base16 = rcon_base16_encode(salt)
 
-   local log_message = "Set password to \'" .. hash .. "\' with salt \'" .. salt .. "\'"
+   mod_storage_save(RCON_SAVE_KEY_PASSWORD_HASH, hash_base16)
+   mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt_base16)
+
+   local log_message = "Set password to \'" .. hash_base16 .. "\' with salt \'" .. salt_base16 .. "\'"
    rcon_log_info(log_message)
    rcon_text_info(log_message)
 
