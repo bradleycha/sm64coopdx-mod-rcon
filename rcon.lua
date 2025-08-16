@@ -317,13 +317,13 @@ local function rcon_check_password(password)
    return hash == gRconPasswordHash
 end
 
-local RCON_PASSWORD_SALT_CHARACTERS = 16
+local RCON_PASSWORD_SALT_BYTES = 16
 
 local function rcon_generate_password_salt()
    local salt = ""
 
-   for _ = 1, RCON_PASSWORD_SALT_CHARACTERS do
-      salt = salt .. string.char(math.random(33, 126))
+   for _ = 1, RCON_PASSWORD_SALT_BYTES do
+      salt = salt .. string.char(math.random(0, 255))
    end
 
    return salt
@@ -342,7 +342,7 @@ local function rcon_set_password(password)
    mod_storage_save(RCON_SAVE_KEY_PASSWORD_HASH, hash_base16)
    mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt_base16)
 
-   local log_message = "Set password to \'" .. hash_base16 .. "\' with salt \'" .. salt_base16 .. "\'"
+   local log_message = "Set password hash to \'" .. hash_base16 .. "\' with salt \'" .. salt_base16 .. "\'"
    rcon_log_info(log_message)
    rcon_text_info(log_message)
 
