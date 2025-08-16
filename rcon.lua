@@ -295,11 +295,10 @@ end
 local function rcon_salt_and_hash_password(password, salt)
    local password_salted = password .. salt
 
-   -- TODO: implement hashing, this will require extending the lua API to
-   -- provide cryptographic functions, particularly one of the SHA2 functions.
-   -- right now, if your rcon.sav file gets leaked, your password is out in the
-   -- open for attackers to steal.  please implement this!
-   return password_salted
+   -- Custom native function
+   local password_hashed = crypto_hash_sha256(password_salted)
+
+   return password_hashed
 end
 
 local function rcon_check_password(password)

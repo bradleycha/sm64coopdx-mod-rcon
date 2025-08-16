@@ -1,10 +1,24 @@
 Copyright (c) Chase Bradley 2025
 
+diff --git a/Makefile b/Makefile
+index 0fc235b8e..0369bb0ce 100644
+--- a/Makefile
++++ b/Makefile
+@@ -965,6 +965,9 @@ else
+   LDFLAGS += -Llib/lua/linux -l:liblua53.a -ldl
+ endif
+ 
++# OpenSSL for Lua cryptographic API
++LDFLAGS += -lssl -lcrypto
++
+ # CoopNet
+ COOPNET_LIBS :=
+ ifeq ($(COOPNET),1)
 diff --git a/autogen/lua_definitions/manual.lua b/autogen/lua_definitions/manual.lua
-index 76ad0d265..a49f03d10 100644
+index 76ad0d265..7be6dbecf 100644
 --- a/autogen/lua_definitions/manual.lua
 +++ b/autogen/lua_definitions/manual.lua
-@@ -277,6 +277,12 @@ function network_send_to(toLocalIndex, reliable, dataTable)
+@@ -277,6 +277,18 @@ function network_send_to(toLocalIndex, reliable, dataTable)
      -- ...
  end
  
@@ -14,14 +28,28 @@ index 76ad0d265..a49f03d10 100644
 +    -- ...
 +end
 +
++--- @param bytes string The bytes to digest for the SHA256 hash
++--- Hashes a string of bytes with the SHA256 hash function
++function crypto_hash_sha256(bytes)
++   -- ...
++end
++
  --- @param textureName string The texture name
  --- @return TextureInfo
  --- Gets the `TextureInfo` of a texture by name
 diff --git a/src/pc/lua/smlua_functions.c b/src/pc/lua/smlua_functions.c
-index 00553a089..904a9ca45 100644
+index 00553a089..a9dacdb69 100644
 --- a/src/pc/lua/smlua_functions.c
 +++ b/src/pc/lua/smlua_functions.c
-@@ -22,6 +22,7 @@
+@@ -2,6 +2,7 @@
+ #include "smlua_cobject.h"
+ 
+ #include <PR/gbi.h>
++#include <openssl/evp.h>
+ 
+ #include "game/level_update.h"
+ #include "game/area.h"
+@@ -22,6 +23,7 @@
  #include "gfx_symbols.h"
  #include "include/macros.h"
  #include "pc/debuglog.h"
@@ -29,7 +57,7 @@ index 00553a089..904a9ca45 100644
  
  bool smlua_functions_valid_param_count(lua_State* L, int expected) {
      int top = lua_gettop(L);
-@@ -296,6 +297,26 @@ int smlua_func_network_send_to(lua_State* L) {
+@@ -296,6 +298,49 @@ int smlua_func_network_send_to(lua_State* L) {
      return 1;
  }
  
@@ -53,14 +81,38 @@ index 00553a089..904a9ca45 100644
 +    return 1;
 +}
 +
++int smlua_func_crypto_hash_sha256(lua_State* L) {
++    if (!smlua_functions_valid_param_count(L, 1)) { return 0; }
++
++    const char* data = smlua_to_string(L, 1);
++    if (!gSmLuaConvertSuccess) { LOG_LUA("crypto_hash_sha256: Failed to convert parameter 1 for function"); return 0; }
++
++    size_t dataBytes = strlen(data);
++
++    char digest[EVP_MAX_MD_SIZE + 1];
++    unsigned int digestLength = 0;
++
++    EVP_MD_CTX *ctx = EVP_MD_CTX_create();
++    EVP_DigestInit(ctx, EVP_sha256());
++    EVP_DigestUpdate(ctx, data, dataBytes);
++    EVP_DigestFinal(ctx, (unsigned char *)digest, &digestLength);
++    digest[digestLength] = '\0';
++    EVP_MD_CTX_free(ctx);
++
++    lua_pushstring(L, digest);
++
++    return 1;
++}
++
  int smlua_func_set_exclamation_box_contents(lua_State* L) {
      if (!smlua_functions_valid_param_count(L, 1)) { return 0; }
  
-@@ -1279,6 +1300,7 @@ void smlua_bind_functions(void) {
+@@ -1279,6 +1324,8 @@ void smlua_bind_functions(void) {
      smlua_bind_function(L, "reset_level", smlua_func_reset_level);
      smlua_bind_function(L, "network_send", smlua_func_network_send);
      smlua_bind_function(L, "network_send_to", smlua_func_network_send_to);
 +    smlua_bind_function(L, "send_chat_message", smlua_func_send_chat_message);
++    smlua_bind_function(L, "crypto_hash_sha256", smlua_func_crypto_hash_sha256);
      smlua_bind_function(L, "set_exclamation_box_contents", smlua_func_set_exclamation_box_contents);
      smlua_bind_function(L, "get_exclamation_box_contents", smlua_func_get_exclamation_box_contents);
      smlua_bind_function(L, "get_texture_info", smlua_func_get_texture_info);
