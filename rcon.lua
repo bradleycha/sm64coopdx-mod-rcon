@@ -390,6 +390,25 @@ local function rcon_set_password(password)
    return
 end
 
+local function rcon_list()
+   local listed = false
+
+   for i, player in ipairs(gRconPlayerTable) do
+      if player ~= nil and player.valid and player.access then
+         listed = true
+
+         local name = rcon_format_player_name(i)
+         rcon_log_textbox(RCON_LOG_LEVEL_INFO, name)
+      end
+   end
+
+   if not listed then
+      rcon_log_textbox(RCON_LOG_LEVEL_WARNING, "There are no players currently logged into the remote console")
+   end
+   
+   return
+end
+
 local function rcon_deauthall()
    for i, player in ipairs(gRconPlayerTable) do
       if player ~= nil and player.valid and player.access then
@@ -718,9 +737,10 @@ local function rcon_parse_cmd_help()
       "\\#a0a0a0\\   login \\#9090f0\\[password]\\#ffffff\\ - Authenticate with the server to get remote console privilege\n" ..
       "\\#a0a0a0\\   send \\#9090f0\\[message]\\#ffffff\\ - Remotely send a chat message as the host\n" ..
       "\\#a0a0a0\\   password \\#9090f0\\[password]\\#ffffff\\ - Set the remote console password\n" ..
-      "\\#a0a0a0\\   deauthall\\#ffffff\\ - Deauthorize all players from the remote console"
+      "\\#a0a0a0\\   list\\#ffffff\\ - List all players currently authorized with the remote console"
    )
    djui_chat_message_create(
+      "\\#a0a0a0\\   deauthall\\#ffffff\\ - Deauthorize all players from the remote console\n" ..
       "\\#a0a0a0\\   max-attempts \\#9090f0\\[count]\\#ffffff\\ - Set the maximum allowed number of login attempts\n" ..
       "\\#a0a0a0\\   timeout-duration \\#9090f0\\[seconds]\\#ffffff\\ - Set the minimum required wait time between login attempts, measured in seconds\n" ..
       "\\#a0a0a0\\   uuid-lifespan \\#9090f0\\[seconds]\\#ffffff\\ - Set the period of time for a player's UUID to be valid, measured in seconds"
@@ -774,14 +794,29 @@ local function rcon_parse_cmd_password(password)
    return
 end
 
-local function rcon_parse_cmd_deauthall(arg)
+local function rcon_parse_cmd_list(arg)
    if arg ~= nil then
-      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Unexpected argument for deauthall remote console command")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "unexpected argument for list remote console command")
       return
    end
 
    if not network_is_server() then
-      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Only the host may deauthorize remote console users")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "only the host may list authorized remote console users")
+      return
+   end
+
+   rcon_list()
+   return
+end
+
+local function rcon_parse_cmd_deauthall(arg)
+   if arg ~= nil then
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "unexpected argument for deauthall remote console command")
+      return
+   end
+
+   if not network_is_server() then
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "only the host may deauthorize remote console users")
       return
    end
 
@@ -882,6 +917,8 @@ local function rcon_parse_cmd(message)
       rcon_parse_cmd_send(arg)
    elseif cmd == "password" then
       rcon_parse_cmd_password(arg)
+   elseif cmd == "list" then
+      rcon_parse_cmd_list(arg)
    elseif cmd == "deauthall" then
       rcon_parse_cmd_deauthall(arg)
    elseif cmd == "max-attempts" then
