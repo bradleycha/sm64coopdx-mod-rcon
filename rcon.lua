@@ -210,6 +210,7 @@ local RCON_PACKET_TYPE_RESPONSE_REQUEST_UUID    = 1 -- Sent by server when a UUI
 local RCON_PACKET_TYPE_RESPONSE_LOGIN           = 2 -- Sent by server when responding to a login request
 local RCON_PACKET_TYPE_RESPONSE_SEND            = 3 -- Sent by server when responding to a send request
 local RCON_PACKET_TYPE_DEAUTHORIZED             = 4 -- Sent by server when a player has been deauthorized
+local RCON_PACKET_TYPE_MESSAGE                  = 5 -- Sent by server when a message should be displayed on the client
 
 local RCON_PACKET_RESPONSE_LOGIN_CODE_OK                 = 0
 local RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN  = 1
@@ -257,6 +258,22 @@ local function rcon_send_packet_send(message)
    rcon_send_packet_to_server(packet)
 end
 
+local function rcon_send_packet_message(sender, level, message)
+   local packet = {
+      type = RCON_PACKET_TYPE_MESSAGE,
+      level = level,
+      message = message,
+   }
+
+   for i, player in ipairs(gRconPlayerTable) do
+      if player ~= nil and player.valid and player.access and i ~= sender then
+         rcon_send_packet_to_client(i, packet)
+      end
+   end
+
+   return
+end
+
 local function rcon_receive_packet_request_uuid(sender_global_index)
    local sender_local_index = network_local_index_from_global(sender_global_index)
 
@@ -276,6 +293,12 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
       assigned_uuid = assigned_uuid
    })
 
+   return
+end
+
+
+local function rcon_receive_packet_message(level, message)
+   rcon_log_textbox(level, message)
    return
 end
 
@@ -360,7 +383,7 @@ local function rcon_set_password(password)
    mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt_base16)
 
    local log_message = "Set password hash to \'" .. hash_base16 .. "\' with salt \'" .. salt_base16 .. "\'"
-   rcon_log_all(RCON_LOG_LEVEL_INFO, "Sending remote console message")
+   rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
 
    return
 end
@@ -600,6 +623,8 @@ local function rcon_packet_receive_client(packet)
       rcon_receive_packet_response_request_uuid(packet.assigned_uuid)
    elseif packet.type == RCON_PACKET_TYPE_DEAUTHORIZED then
       rcon_receive_packet_deauthorized()
+   elseif packet.type == RCON_PACKET_TYPE_MESSAGE then
+      rcon_receive_packet_message(packet.level, packet.message)
    elseif packet.type == RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC then
       rcon_receive_packet_response_generic_error()
    end
