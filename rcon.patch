@@ -38,7 +38,7 @@ index 76ad0d265..7be6dbecf 100644
  --- @return TextureInfo
  --- Gets the `TextureInfo` of a texture by name
 diff --git a/src/pc/lua/smlua_functions.c b/src/pc/lua/smlua_functions.c
-index 00553a089..a9dacdb69 100644
+index 86f51191a..0c9631ad5 100644
 --- a/src/pc/lua/smlua_functions.c
 +++ b/src/pc/lua/smlua_functions.c
 @@ -2,6 +2,7 @@
@@ -49,15 +49,16 @@ index 00553a089..a9dacdb69 100644
  
  #include "game/level_update.h"
  #include "game/area.h"
-@@ -22,6 +23,7 @@
+@@ -21,6 +22,8 @@
+ #include "game/hardcoded.h"
  #include "gfx_symbols.h"
  #include "include/macros.h"
- #include "pc/debuglog.h"
++#include "pc/debuglog.h"
 +#include "pc/chat_commands.h"
  
  bool smlua_functions_valid_param_count(lua_State* L, int expected) {
      int top = lua_gettop(L);
-@@ -296,6 +298,49 @@ int smlua_func_network_send_to(lua_State* L) {
+@@ -295,6 +298,49 @@ int smlua_func_network_send_to(lua_State* L) {
      return 1;
  }
  
@@ -107,7 +108,7 @@ index 00553a089..a9dacdb69 100644
  int smlua_func_set_exclamation_box_contents(lua_State* L) {
      if (!smlua_functions_valid_param_count(L, 1)) { return 0; }
  
-@@ -1279,6 +1324,8 @@ void smlua_bind_functions(void) {
+@@ -1268,6 +1314,8 @@ void smlua_bind_functions(void) {
      smlua_bind_function(L, "reset_level", smlua_func_reset_level);
      smlua_bind_function(L, "network_send", smlua_func_network_send);
      smlua_bind_function(L, "network_send_to", smlua_func_network_send_to);
