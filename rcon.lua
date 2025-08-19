@@ -56,6 +56,10 @@ local function rcon_log(level, destination, message)
 
    local color = nil
    if level == RCON_LOG_LEVEL_DEBUG then
+      if not gRconDebug then
+         return
+      end
+
       color = RCON_LOG_COLOR_DEBUG
    elseif level == RCON_LOG_LEVEL_INFO then
       color = RCON_LOG_COLOR_INFO
