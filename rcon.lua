@@ -219,7 +219,7 @@ local function rcon_uuid_create_new(local_index)
       timestamp_last_uuid = get_time(),
    }
 
-   rcon_log_console(RCON_LOG_LEVEL_INFO, "assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
+   rcon_log_console(RCON_LOG_LEVEL_DEBUG, "assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
    return uuid
 end
 
@@ -228,7 +228,7 @@ local function rcon_uuid_remove(local_index)
       return
    end
 
-   rcon_log_console(RCON_LOG_LEVEL_INFO, "removing UUID for player " .. rcon_format_player_name(local_index))
+   rcon_log_console(RCON_LOG_LEVEL_DEBUG, "removing UUID for player " .. rcon_format_player_name(local_index))
    gRconPlayerTable[local_index].valid = false
    return
 end
@@ -395,7 +395,7 @@ local function rcon_set_password(password)
    mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt_base16)
 
    local log_message = "Set password hash to \'" .. hash_base16 .. "\' with salt \'" .. salt_base16 .. "\'"
-   rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
+   rcon_log_all(RCON_LOG_LEVEL_DEBUG, log_message)
 
    return
 end
@@ -713,7 +713,7 @@ local function rcon_update_player(local_index, timestamp)
 
       local uuid = rcon_uuid_generate()
 
-      rcon_log_console(RCON_LOG_LEVEL_INFO, "Assigning new UUID " .. tostring(uuid) .. " to " .. name)
+      rcon_log_console(RCON_LOG_LEVEL_DEBUG, "Assigning new UUID " .. tostring(uuid) .. " to " .. name)
 
       player.uuid = uuid
 
