@@ -3,42 +3,60 @@
 
 -- Copyright (c) Chase Bradley 2025
 
-local function rcon_text_info(message)
-   local color = "\\#90f090\\"
+local RCON_LOG_LEVEL_DEBUG    = 0
+local RCON_LOG_LEVEL_INFO     = 1
+local RCON_LOG_LEVEL_WARNING  = 2
+local RCON_LOG_LEVEL_ERROR    = 3
 
-   djui_chat_message_create(color .. message)
+local RCON_LOG_DESTINATION_BIT_CONSOLE  = 1
+local RCON_LOG_DESTINATION_BIT_TEXTBOX  = 2
+
+local function rcon_log(level, destination, message)
+   local RCON_LOG_COLOR_DEBUG    = "\\#6000a0\\"
+   local RCON_LOG_COLOR_INFO     = "\\#90f090\\"
+   local RCON_LOG_COLOR_WARNING  = "\\#f0f090\\"
+   local RCON_LOG_COLOR_ERROR    = "\\#b02020\\"
+
+   local color = nil
+   if level == RCON_LOG_LEVEL_DEBUG then
+      color = RCON_LOG_COLOR_DEBUG
+   elseif level == RCON_LOG_LEVEL_INFO then
+      color = RCON_LOG_COLOR_INFO
+   elseif level == RCON_LOG_LEVEL_WARNING then
+      color = RCON_LOG_COLOR_WARNING
+   elseif level == RCON_LOG_LEVEL_ERROR then
+      color = RCON_LOG_COLOR_ERROR
+   else
+      -- done to prevent bad packets from causing problems
+      return
+   end
+
+   if (destination & RCON_LOG_DESTINATION_BIT_CONSOLE) ~= 0 then
+      log_to_console("rcon: " .. message)
+   end
+   if (destination & RCON_LOG_DESTINATION_BIT_TEXTBOX) ~= 0 then
+      djui_chat_message_create(color .. message)
+   end
 
    return
 end
 
-local function rcon_text_warning(message)
-   local color = "\\#f0f090\\"
-
-   djui_chat_message_create(color .. message)
-
+local function rcon_log_console(level, message)
+   rcon_log(level, RCON_LOG_DESTINATION_BIT_CONSOLE, message)
    return
 end
 
-local function rcon_text_error(message)
-   local color = "\\#b02020\\"
-
-   djui_chat_message_create(color .. message)
-
+local function rcon_log_textbox(level, message)
+   rcon_log(level, RCON_LOG_DESTINATION_BIT_TEXTBOX, message)
    return
 end
 
-local RCON_LOG_PREFIX = "rcon: "
+local function rcon_log_all(level, message)
+   local destination = RCON_LOG_DESTINATION_BIT_CONSOLE | RCON_LOG_DESTINATION_BIT_TEXTBOX
 
-local function rcon_log_info(message)
-   log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_INFO)
-end
+   rcon_log(level, destination, message)
 
-local function rcon_log_warning(message)
-   log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_WARNING)
-end
-
-local function rcon_log_error(message)
-   log_to_console(RCON_LOG_PREFIX .. message, CONSOLE_MESSAGE_ERROR)
+   return
 end
 
 local function rcon_base16_encode_character(num)
@@ -69,7 +87,7 @@ local function rcon_base16_decode(str)
       
       local byte = tonumber("0x" .. hexits)
       if byte == nil then
-         rcon_log_error("failed to decode base-16 string \'" .. str .. "\'")
+         rcon_log_console(RCON_LOG_LEVEL_ERROR, "failed to decode base-16 string \'" .. str .. "\'")
          return
       end
 
@@ -160,7 +178,7 @@ local function rcon_uuid_create_new(local_index)
       timestamp_last_uuid = get_time(),
    }
 
-   rcon_log_info("assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
+   rcon_log_console(RCON_LOG_LEVEL_INFO, "assigned UUID " .. tostring(uuid) .. " to player " .. rcon_format_player_name(local_index))
    return uuid
 end
 
@@ -169,7 +187,7 @@ local function rcon_uuid_remove(local_index)
       return
    end
 
-   rcon_log_info("removing UUID for player " .. rcon_format_player_name(local_index))
+   rcon_log_console(RCON_LOG_LEVEL_INFO, "removing UUID for player " .. rcon_format_player_name(local_index))
    gRconPlayerTable[local_index].valid = false
    return
 end
@@ -224,7 +242,7 @@ local function rcon_send_packet_login(password)
       password = password,
    }
 
-   rcon_text_info("Logging into remote console")
+   rcon_log_textbox(RCON_LOG_LEVEL_INFO, "Logging into remote console")
    rcon_send_packet_to_server(packet)
 end
 
@@ -235,7 +253,7 @@ local function rcon_send_packet_send(message)
       message = message,
    }
 
-   rcon_text_info("Sending remote console message")
+   rcon_log_textbox(RCON_LOG_LEVEL_INFO, "Sending remote console message")
    rcon_send_packet_to_server(packet)
 end
 
@@ -246,7 +264,7 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
    -- to deauthorize existing users.  Combined with a script to spam packets,
    -- this could effectively disable the rcon for everyone in the server.
    if rcon_uuid_exists_for_local_index(sender_local_index) then
-      rcon_log_warning("attempted to regenerate UUID for player " .. rcon_format_player_name(sender_local_index))
+      rcon_log_console(RCON_LOG_LEVEL_WARNING, "attempted to regenerate UUID for player " .. rcon_format_player_name(sender_local_index))
       rcon_send_packet_to_client(sender_local_index, {type = RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC})
       return
    end
@@ -303,11 +321,11 @@ end
 
 local function rcon_check_password(password)
    if gRconPasswordHash == nil then
-      rcon_log_error("missing password hash value from save file, unable to verify password")
+      rcon_log_console(RCON_LOG_ERROR, "missing password hash value from save file, unable to verify password")
       return false
    end
    if gRconPasswordSalt == nil then
-      rcon_log_error("missing password salt value from save file, unable to verify password")
+      rcon_log_console(RCON_LOG_ERROR, "missing password salt value from save file, unable to verify password")
       return false
    end
 
@@ -342,8 +360,7 @@ local function rcon_set_password(password)
    mod_storage_save(RCON_SAVE_KEY_PASSWORD_SALT, salt_base16)
 
    local log_message = "Set password hash to \'" .. hash_base16 .. "\' with salt \'" .. salt_base16 .. "\'"
-   rcon_log_info(log_message)
-   rcon_text_info(log_message)
+   rcon_log_all(RCON_LOG_LEVEL_INFO, "Sending remote console message")
 
    return
 end
@@ -358,8 +375,7 @@ local function rcon_deauthall()
 
          local name = rcon_format_player_name(i)
          local log_message = "Deauthorizing player " .. name
-         rcon_log_info(log_message)
-         rcon_text_info(log_message)
+         rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
       end
    end
    
@@ -372,8 +388,7 @@ local function rcon_set_maximum_attempts(attempts)
    mod_storage_save_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS, attempts)
 
    local log_message = "Set maximum login attempts to " .. tostring(attempts)
-   rcon_log_info(log_message)
-   rcon_text_info(log_message)
+   rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
 
    return
 end
@@ -384,8 +399,7 @@ local function rcon_set_login_timeout_duration(duration)
    mod_storage_save_number(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION, duration)
 
    local log_message = "Set login timeout duration to " .. tostring(duration) .. " seconds"
-   rcon_log_info(log_message)
-   rcon_text_info(log_message)
+   rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
 
    return
 end
@@ -396,8 +410,7 @@ local function rcon_set_uuid_lifespan(duration)
    mod_storage_save_number(RCON_SAVE_KEY_UUID_LIFESPAN, duration)
 
    local log_message = "Set UUID lifespan to " .. tostring(duration) .. " seconds"
-   rcon_log_info(log_message)
-   rcon_text_info(log_message)
+   rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
 
    return
 end
@@ -421,8 +434,7 @@ local function rcon_receive_packet_login(sender, password)
 
       if duration < gRconLoginTimeoutDuration then
          local log_message = "Player " .. name .. " attempted to login too quickly (" .. tostring(duration) ..  " ticks) after a previously failed login attempt"
-         rcon_log_warning(log_message)
-         rcon_text_warning(log_message)
+         rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
 
          rcon_send_packet_to_client(sender, {
             type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
@@ -435,8 +447,7 @@ local function rcon_receive_packet_login(sender, password)
 
    if player.forbidden then
       local log_message = "Forbidden player " .. name .. " attempted to login to the remote console with password \'" .. password .. "\'"
-      rcon_log_warning(log_message)
-      rcon_text_warning(log_message)
+      rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
 
       -- If someone is trying to brute force the password, we lie to them and
       -- claim the password is incorrect, even if they get it correct this time.
@@ -451,8 +462,7 @@ local function rcon_receive_packet_login(sender, password)
 
    if password_is_correct then
       local log_message = "Player " .. name .. " successfully logged into the remote console"
-      rcon_log_info(log_message)
-      rcon_text_info(log_message)
+      rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
       
       player.access = true
       player.failed_login_attempts = 0
@@ -468,13 +478,11 @@ local function rcon_receive_packet_login(sender, password)
    player.failed_login_attempts = player.failed_login_attempts + 1
 
    local log_message = "Player " .. name .. " attempted to login to the remote console with incorrect password \'" .. password .. "\', they have " .. tostring(gRconMaximumLoginAttempts - player.failed_login_attempts) .. " login attempts remaining"
-   rcon_log_warning(log_message)
-   rcon_text_warning(log_message)
+   rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
 
    if player.failed_login_attempts >= gRconMaximumLoginAttempts then
       local log_message = "Player " .. name .. " surpassed maximum number of invalid login attempts, forbidding future login attempts"
-      rcon_log_warning(log_message)
-      rcon_text_warning(log_message)
+      rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
 
       player.forbidden = true
    end
@@ -492,8 +500,7 @@ local function rcon_receive_packet_send(sender, message)
 
    if not player.access then
       local log_message = "Unauthorized player " .. name .. " attempted to send remote console message \'" .. message .. "\'"
-      rcon_log_warning(log_message)
-      rcon_text_warning(log_message)
+      rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
 
       rcon_send_packet_to_client(sender, {
          type = RCON_PACKET_TYPE_RESPONSE_SEND,
@@ -503,8 +510,7 @@ local function rcon_receive_packet_send(sender, message)
    end
 
    local log_message = "Player " .. name .. " sent remote console message \'" .. message .. "\'"
-   rcon_log_info(log_message)
-   rcon_text_info(log_message)
+   rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
 
    -- Custom lua function, requires patching the game's sources
    send_chat_message(message)
@@ -519,13 +525,13 @@ end
 
 local function rcon_receive_packet_response_login(code)
    if code == RCON_PACKET_RESPONSE_LOGIN_CODE_OK then
-      rcon_text_info("Logged into remote console successfully")
+      rcon_log_textbox(RCON_LOG_LEVEL_INFO, "Logged into remote console successfully")
    elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_ALREADY_LOGGED_IN then
-      rcon_text_warning("You are already authorized with the remote console")
+      rcon_log_textbox(RCON_LOG_LEVEL_WARNING, "You are already authorized with the remote console")
    elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_BAD_PASSWORD then
-      rcon_text_error("Incorrect password for remote console")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Incorrect password for remote console")
    elseif code == RCON_PACKET_RESPONSE_LOGIN_CODE_THROTTLE then
-      rcon_text_error("Please wait longer until the next login attempt")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Please wait longer until the next login attempt")
    end
 
    return
@@ -533,9 +539,9 @@ end
 
 local function rcon_receive_packet_response_send(code)
    if code == RCON_PACKET_RESPONSE_SEND_CODE_OK then
-      rcon_text_info("Remote console message sent successfully")
+      rcon_log_textbox(RCON_LOG_LEVEL_INFO, "Remote console message sent successfully")
    elseif code == RCON_PACKET_RESPONSE_SEND_CODE_UNAUTHORIZED then
-      rcon_text_error("Unauthorized to send remote console messages")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Unauthorized to send remote console messages")
    end
 
    return
@@ -547,7 +553,7 @@ local function rcon_receive_packet_response_request_uuid(assigned_uuid)
 end
 
 local function rcon_receive_packet_deauthorized()
-   rcon_text_warning("You have been deauthorized from the remote console")
+   rcon_log_textbox(RCON_LOG_LEVEL_WARNING, "You have been deauthorized from the remote console")
    return
 end
 
@@ -556,14 +562,14 @@ local function rcon_receive_packet_response_generic_error()
    -- cause of the error.  This is useful when invalid data is sent, which may
    -- come from hacking attempts.  If the client is trying to hack us, we want
    -- to be as vague as possible, so we just send a generic error packet.
-   rcon_text_error("A remote console error occurred.  Please try again later, or rejoin if the issue persists.")
+   rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "A remote console error occurred.  Please try again later, or rejoin if the issue persists.")
    return
 end
 
 local function rcon_packet_receive_server_uuid(packet)
    local sender = rcon_uuid_to_local_index(packet.uuid)
    if sender == -1 then
-      rcon_log_warning("received packet with invalid UUID " .. packet.uuid)
+      rcon_log_console(RCON_LOG_LEVEL_WARNING, "received packet with invalid UUID " .. packet.uuid)
       return
    end
 
@@ -644,7 +650,7 @@ local function rcon_update_player(local_index, timestamp)
 
       local uuid = rcon_uuid_generate()
 
-      rcon_log_info("Assigning new UUID " .. tostring(uuid) .. " to " .. name)
+      rcon_log_console(RCON_LOG_LEVEL_INFO, "Assigning new UUID " .. tostring(uuid) .. " to " .. name)
 
       player.uuid = uuid
 
@@ -691,12 +697,12 @@ end
 
 local function rcon_parse_cmd_login(password)
    if password == nil then
-      rcon_text_error("Missing remote console password")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Missing remote console password")
       return
    end
 
    if network_is_server() then
-      rcon_text_error("You are the host, refusing to login")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "You are the host, refusing to login")
       return
    end
 
@@ -706,12 +712,12 @@ end
 
 local function rcon_parse_cmd_send(cmd)
    if cmd == nil then
-      rcon_text_error("Missing remote chat message")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Missing remote chat message")
       return
    end
 
    if network_is_server() then
-      rcon_text_error("You are the host, refusing to send message")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "You are the host, refusing to send message")
       return
    end
 
@@ -721,12 +727,12 @@ end
 
 local function rcon_parse_cmd_password(password)
    if password == nil then
-      rcon_text_error("Missing new remote console password")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Missing new remote console password")
       return
    end
 
    if not network_is_server() then
-      rcon_text_error("Only the host may set the remote console password")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Only the host may set the remote console password")
       return
    end
 
@@ -736,12 +742,12 @@ end
 
 local function rcon_parse_cmd_deauthall(arg)
    if arg ~= nil then
-      rcon_text_error("Unexpected argument for deauthall remote console command")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Unexpected argument for deauthall remote console command")
       return
    end
 
    if not network_is_server() then
-      rcon_text_error("Only the host may deauthorize remote console users")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Only the host may deauthorize remote console users")
       return
    end
 
@@ -751,18 +757,18 @@ end
 
 local function rcon_parse_cmd_max_attempts(attempts)
    if attempts == nil then
-      rcon_text_error("Expected login attempts count")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Expected login attempts count")
       return
    end
 
    local attempts_int = tonumber(attempts)
    if attempts_int == nil or attempts_int <= 0 then
-      rcon_text_error("Login attempts count must be a positive integer")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Login attempts count must be a positive integer")
       return
    end
 
    if not network_is_server() then
-      rcon_text_error("Only the host may set the maximum login attempts")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Only the host may set the maximum login attempts")
       return
    end
 
@@ -772,18 +778,18 @@ end
 
 local function rcon_parse_cmd_timeout_duration(duration)
    if duration == nil then
-      rcon_text_error("Expected timeout duration")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Expected timeout duration")
       return
    end
 
    local duration_int = tonumber(duration)
    if duration_int == nil or duration_int < 0 then
-      rcon_text_error("Login timeout duration must be a non-negative integer")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Login timeout duration must be a non-negative integer")
       return
    end
 
    if not network_is_server() then
-      rcon_text_error("Only the host may set the login timeout duration")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Only the host may set the login timeout duration")
       return
    end
 
@@ -793,18 +799,18 @@ end
 
 local function rcon_parse_cmd_uuid_lifespan(duration)
    if duration == nil then
-      rcon_text_error("Expected UUID lifespan")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Expected UUID lifespan")
       return
    end
 
    local duration_int = tonumber(duration)
    if duration_int == nil or duration_int <= 0 then
-      rcon_text_error("Lifespan must be a positive integer")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Lifespan must be a positive integer")
       return
    end
 
    if not network_is_server() then
-      rcon_text_error("Only the host may set the UUID lifespan")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Only the host may set the UUID lifespan")
       return
    end
 
@@ -851,7 +857,7 @@ local function rcon_parse_cmd(message)
    elseif cmd == "uuid-lifespan" then
       rcon_parse_cmd_uuid_lifespan(arg)
    else
-      rcon_text_error("Unknown remote console command")
+      rcon_log_textbox(RCON_LOG_LEVEL_ERROR, "Unknown remote console command")
    end
 
    return true
