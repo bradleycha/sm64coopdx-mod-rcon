@@ -281,7 +281,9 @@ local function rcon_receive_packet_request_uuid(sender_global_index)
    -- to deauthorize existing users.  Combined with a script to spam packets,
    -- this could effectively disable the rcon for everyone in the server.
    if rcon_uuid_exists_for_local_index(sender_local_index) then
-      rcon_log_console(RCON_LOG_LEVEL_WARNING, "attempted to regenerate UUID for player " .. rcon_format_player_name(sender_local_index))
+      local log_message = "attempted to regenerate UUID for player " .. rcon_format_player_name(sender_local_index)
+      rcon_log_console(RCON_LOG_LEVEL_WARNING, log_message)
+      rcon_send_packet_message(sender_local_index, log_message)
       rcon_send_packet_to_client(sender_local_index, {type = RCON_PACKET_TYPE_RESPONSE_ERROR_GENERIC})
       return
    end
@@ -456,8 +458,9 @@ local function rcon_receive_packet_login(sender, password)
       local duration = timestamp_curr - timestamp_prev
 
       if duration < gRconLoginTimeoutDuration then
-         local log_message = "Player " .. name .. " attempted to login too quickly (" .. tostring(duration) ..  " ticks) after a previously failed login attempt"
+         local log_message = "Player " .. name .. " attempted to login too quickly (" .. tostring(duration) ..  " seconds) after a previously failed login attempt"
          rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
+         rcon_send_packet_message(sender, RCON_LOG_LEVEL_WARNING, log_message)
 
          rcon_send_packet_to_client(sender, {
             type = RCON_PACKET_TYPE_RESPONSE_LOGIN,
@@ -471,6 +474,7 @@ local function rcon_receive_packet_login(sender, password)
    if player.forbidden then
       local log_message = "Forbidden player " .. name .. " attempted to login to the remote console with password \'" .. password .. "\'"
       rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
+      rcon_send_packet_message(sender, RCON_LOG_LEVEL_WARNING, log_message)
 
       -- If someone is trying to brute force the password, we lie to them and
       -- claim the password is incorrect, even if they get it correct this time.
@@ -486,6 +490,7 @@ local function rcon_receive_packet_login(sender, password)
    if password_is_correct then
       local log_message = "Player " .. name .. " successfully logged into the remote console"
       rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
+      rcon_send_packet_message(sender, RCON_LOG_LEVEL_INFO, log_message)
       
       player.access = true
       player.failed_login_attempts = 0
@@ -502,10 +507,12 @@ local function rcon_receive_packet_login(sender, password)
 
    local log_message = "Player " .. name .. " attempted to login to the remote console with incorrect password \'" .. password .. "\', they have " .. tostring(gRconMaximumLoginAttempts - player.failed_login_attempts) .. " login attempts remaining"
    rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
+   rcon_send_packet_message(sender, RCON_LOG_LEVEL_WARNING, log_message)
 
    if player.failed_login_attempts >= gRconMaximumLoginAttempts then
       local log_message = "Player " .. name .. " surpassed maximum number of invalid login attempts, forbidding future login attempts"
       rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
+      rcon_send_packet_message(sender, RCON_LOG_LEVEL_WARNING, log_message)
 
       player.forbidden = true
    end
@@ -524,6 +531,7 @@ local function rcon_receive_packet_send(sender, message)
    if not player.access then
       local log_message = "Unauthorized player " .. name .. " attempted to send remote console message \'" .. message .. "\'"
       rcon_log_all(RCON_LOG_LEVEL_WARNING, log_message)
+      rcon_send_packet_message(sender, RCON_LOG_LEVEL_WARNING, log_message)
 
       rcon_send_packet_to_client(sender, {
          type = RCON_PACKET_TYPE_RESPONSE_SEND,
@@ -534,6 +542,7 @@ local function rcon_receive_packet_send(sender, message)
 
    local log_message = "Player " .. name .. " sent remote console message \'" .. message .. "\'"
    rcon_log_all(RCON_LOG_LEVEL_INFO, log_message)
+   rcon_send_packet_message(sender, RCON_LOG_LEVEL_INFO, log_message)
 
    -- Custom lua function, requires patching the game's sources
    send_chat_message(message)
