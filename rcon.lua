@@ -15,31 +15,6 @@ if mod_storage_exists(RCON_SAVE_KEY_DEBUG) then
    gRconDebug = mod_storage_load_bool(RCON_SAVE_KEY_DEBUG)
 end
 
-local gRconMaximumLoginAttempts = 5
-if mod_storage_exists(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS) then
-   gRconMaximumLoginAttempts = mod_storage_load_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS)
-end
-
-local gRconLoginTimeoutDuration = 3
-if mod_storage_exists(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION) then
-   gRconLoginTimeoutDuration = mod_storage_load_number(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION)
-end
-
-local gRconUuidLifespan = 60
-if mod_storage_exists(RCON_SAVE_KEY_UUID_LIFESPAN) then
-   gRconUuidLifespan = mod_storage_load_number(RCON_SAVE_KEY_UUID_LIFESPAN)
-end
-
-local gRconPasswordHash = nil
-if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_HASH) then
-   gRconPasswordHash = rcon_base16_decode(mod_storage_load(RCON_SAVE_KEY_PASSWORD_HASH))
-end
-
-local gRconPasswordSalt = nil
-if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_SALT) then
-   gRconPasswordSalt = rcon_base16_decode(mod_storage_load(RCON_SAVE_KEY_PASSWORD_SALT))
-end
-
 local RCON_LOG_LEVEL_DEBUG    = 0
 local RCON_LOG_LEVEL_INFO     = 1
 local RCON_LOG_LEVEL_WARNING  = 2
@@ -348,6 +323,31 @@ end
 local function rcon_receive_packet_message(level, message)
    rcon_log_textbox(level, message)
    return
+end
+
+local gRconMaximumLoginAttempts = 5
+if mod_storage_exists(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS) then
+   gRconMaximumLoginAttempts = mod_storage_load_number(RCON_SAVE_KEY_MAXIMUM_LOGIN_ATTEMPTS)
+end
+
+local gRconLoginTimeoutDuration = 3
+if mod_storage_exists(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION) then
+   gRconLoginTimeoutDuration = mod_storage_load_number(RCON_SAVE_KEY_LOGIN_TIMEOUT_DURATION)
+end
+
+local gRconUuidLifespan = 60
+if mod_storage_exists(RCON_SAVE_KEY_UUID_LIFESPAN) then
+   gRconUuidLifespan = mod_storage_load_number(RCON_SAVE_KEY_UUID_LIFESPAN)
+end
+
+local gRconPasswordHash = nil
+if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_HASH) then
+   gRconPasswordHash = rcon_base16_decode(mod_storage_load(RCON_SAVE_KEY_PASSWORD_HASH))
+end
+
+local gRconPasswordSalt = nil
+if mod_storage_exists(RCON_SAVE_KEY_PASSWORD_SALT) then
+   gRconPasswordSalt = rcon_base16_decode(mod_storage_load(RCON_SAVE_KEY_PASSWORD_SALT))
 end
 
 local function rcon_salt_and_hash_password(password, salt)
