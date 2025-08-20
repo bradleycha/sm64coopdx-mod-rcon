@@ -30,30 +30,30 @@ local function rcon_log(level, destination, message)
    local RCON_LOG_COLOR_ERROR    = "\\#b02020\\"
 
    local color = nil
-   local level = nil
+   local djui_level = nil
    if level == RCON_LOG_LEVEL_DEBUG then
       if not gRconDebug then
          return
       end
 
       color = RCON_LOG_COLOR_DEBUG
-      level = CONSOLE_MESSAGE_INFO
+      djui_level = CONSOLE_MESSAGE_INFO
    elseif level == RCON_LOG_LEVEL_INFO then
       color = RCON_LOG_COLOR_INFO
-      level = CONSOLE_MESSAGE_INFO
+      djui_level = CONSOLE_MESSAGE_INFO
    elseif level == RCON_LOG_LEVEL_WARNING then
       color = RCON_LOG_COLOR_WARNING
-      level = CONSOLE_MESSAGE_WARNING
+      djui_level = CONSOLE_MESSAGE_WARNING
    elseif level == RCON_LOG_LEVEL_ERROR then
       color = RCON_LOG_COLOR_ERROR
-      level = CONSOLE_MESSAGE_ERROR
+      djui_level = CONSOLE_MESSAGE_ERROR
    else
       -- done to prevent bad packets from causing problems
       return
    end
 
    if (destination & RCON_LOG_DESTINATION_BIT_CONSOLE) ~= 0 then
-      log_to_console("rcon: " .. message, level)
+      log_to_console("rcon: " .. message, djui_level)
    end
    if (destination & RCON_LOG_DESTINATION_BIT_TEXTBOX) ~= 0 then
       djui_chat_message_create(color .. message)
