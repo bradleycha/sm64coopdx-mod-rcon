@@ -1,7 +1,20 @@
-# Remote Console v1.0.0
+# Remote Console v1.1.0
 
 A mod for Super Mario 64 Online Coop Deluxe which allows for players to remotely
 commands and messages from the host.
+
+## Warning
+
+This mod adds a Lua function which allows scripts to send chat messages as if
+you sent them yourself.  If you host servers with this mod, make sure you only
+install trusted mods and join trusted servers.  Otherwise, a malicious script
+could force you to send malicious chat messages to get you banned from CoopNet.
+If you are only joining a server with this mod, there is no safety risk as only
+hosts will have the dangerous Lua function.  However, if you host servers with
+this mod and then join servers with the same build of `sm64coopdx`, the above
+could happen, so be careful.  It's recommended to have a seperate build of
+`sm64coopdx` dedicated to hosting with this mod, and then use a vanilla client
+when joining servers.
 
 ## Installation
 
