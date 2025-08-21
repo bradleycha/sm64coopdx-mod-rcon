@@ -19,8 +19,20 @@ when joining servers.
 ## Installation
 
 Installing requires building a patched `sm64coopdx` build for the server as well
-as installing the lua file to the mods folder.  Clients connecting to the server
-do not need to be patched.
+as building and installing the lua files to the mods folder.  Clients connecting 
+to the server do not need to be patched with `rcon.patch`.
+
+### Building the Release
+
+To build a release from source, type the following command while in the source
+code directory:
+
+```
+make
+```
+
+This will build all the release files under `build/rcon-1.2.0`.  The rest of the
+files will be relative to this directory.
 
 ### Building the Server
 
@@ -29,16 +41,16 @@ would.  Then, type the following command to apply the server patches:
 
 ```
 cd [PATH_TO_SM64COOPDX_SOURCES]
-git apply [PATH_TO_MOD]/rcon.patch
+git apply [PATH_TO_RELEASE]/rcon.patch
 ```
 
 This will patch the source code to allow using the remote console.  You can now
 build `sm64coopdx` and install it as you usually do.
 
-### Installing the Lua File
+### Installing the Mod
 
 Next, install the lua file which will run on both the server and any connected
-clients.  This can simply be done by copying `rcon.lua` to your mods folder.
+clients.  This can simply be done by copying `[PATH_TO_RELEASE]/rcon` to your mods folder.
 
 ## Usage
 
