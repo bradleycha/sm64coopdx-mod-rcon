@@ -1,4 +1,4 @@
-# Remote Console v1.1.0
+# Remote Console v1.2.0
 
 A mod for Super Mario 64 Online Coop Deluxe which allows for players to remotely
 commands and messages from the host.
