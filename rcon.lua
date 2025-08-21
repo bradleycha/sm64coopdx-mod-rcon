@@ -93,7 +93,7 @@ local function rcon_base16_encode(data)
 
    for i = 1, #data do
       local byte = string.byte(data:sub(i,i))
-      local hexits = string.format("%x", byte)
+      local hexits = string.format("%02x", byte)
       str = str .. hexits
    end
 
